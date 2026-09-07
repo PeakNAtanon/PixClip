@@ -77,6 +77,12 @@ PIXCLIP_INTEGRATION=1 python3 -m unittest -v test_pixclip_integration
 
 See [`README-PixClip.md`](README-PixClip.md) for the detailed Thai user guide and [`AGENTS.md`](AGENTS.md) for contributor instructions.
 
+## Support PixClip
+
+If PixClip is useful to you, you can support its continued development on Ko-fi:
+
+[☕ Support PixClip on Ko-fi](https://ko-fi.com/peaknatanon)
+
 ## License
 
 PixClip is released under the [MIT License](LICENSE).
