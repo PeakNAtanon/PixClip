@@ -53,7 +53,10 @@ For a manual launch, use [`OPEN-GUI-CMD.bat`](OPEN-GUI-CMD.bat) or [`PixClip.bat
 # GUI
 python3 media_toolkit.py
 
-# Terminal mode
+# Terminal mode after install.sh
+PixClip --cli
+
+# Terminal mode from the source folder
 python3 media_toolkit.py --cli
 
 # Environment report
@@ -71,7 +74,7 @@ PixClip is Python/Tkinter based and is designed to run on most mainstream Linux 
 | Ubuntu, Debian, Linux Mint, Pop!_OS | Yes | `python3-pip`, `ffmpeg`, `curl`, and `tar`; `python3-tk` is installed automatically by PixClip when possible |
 | Fedora | Yes | `python3`, `python3-pip`, `python3-tkinter`, `ffmpeg`, `curl`, and `tar` |
 | Arch Linux, Manjaro | Yes | `python`, `python-pip`, `tk`, `ffmpeg`, `curl`, and `tar` |
-| WSL2 + WSLg | Yes, with WSLg | Use the Ubuntu/Debian instructions; without WSLg use `--cli` |
+| WSL2 + WSLg | Yes, with WSLg | Use the Ubuntu/Debian instructions; without WSLg run `PixClip --cli` |
 
 For Ubuntu/Debian-family systems, the recommended preparation is:
 

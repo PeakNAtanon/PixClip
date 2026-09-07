@@ -8,7 +8,7 @@ GUI แบบ Terminal / Pixel art สำหรับ Windows และ Linux �
 - Windows: ดับเบิลคลิก `PixClip.bat` หรือ `PixClip.lnk`
 - หลังแตก ZIP ในเครื่องใหม่: ดับเบิลคลิก `Create-PixClip-Shortcut.vbs` เพื่อสร้าง shortcut พร้อมไอคอนในโฟลเดอร์นี้
 - Linux Desktop: ใช้ `install.sh` แบบ curl ด้านล่าง แล้วเรียก `PixClip` (`Install-Media-Tools.py` จะติดตั้ง `python3-tk` อัตโนมัติบน Linux ที่ใช้ `apt-get` หากยังไม่มี)
-- Linux ไม่มีจอ: `./PixClip --cli` — คิวและตารางอัดแบบใหม่อยู่ใน GUI เท่านั้น
+- Linux ไม่มีจอ: หลังติดตั้งใช้ `PixClip --cli`; ถ้าเปิดจากโฟลเดอร์ source ใช้ `./PixClip --cli` — คิวและตารางอัดแบบใหม่อยู่ใน GUI เท่านั้น
 - เก็บ `media_toolkit.py`, `pixclip_jobs.py`, `pixclip_ui.py` และโฟลเดอร์ `assets` ไว้ด้วยกัน
 
 กดปุ่ม `วิธีใช้ / HELP` ในแอปเพื่อเปิดคู่มือแบบ Popup เลือกภาษา `TH` หรือ `EN` ได้ หรือกด `เปิดคู่มือเต็ม` จาก Popup เพื่อเปิดไฟล์นี้
@@ -32,7 +32,7 @@ PixClip ใช้ Python 3, Tkinter, yt-dlp, FFmpeg/ffprobe และ Streamlink
 | Ubuntu, Debian, Linux Mint, Pop!_OS | ได้ | `python3-pip`, `ffmpeg`, `curl`, `tar`; `python3-tk` จะถูกติดตั้งอัตโนมัติเมื่อใช้ `apt-get` และมีสิทธิ์ `sudo` |
 | Fedora | ได้ | `python3`, `python3-pip`, `python3-tkinter`, `ffmpeg`, `curl`, `tar` |
 | Arch Linux, Manjaro | ได้ | `python`, `python-pip`, `tk`, `ffmpeg`, `curl`, `tar` |
-| WSL2 + WSLg | ได้เมื่อมี WSLg | ใช้แพ็กเกจแบบ Ubuntu/Debian; ถ้าไม่มี WSLg ให้ใช้ `./PixClip --cli` |
+| WSL2 + WSLg | ได้เมื่อมี WSLg | ใช้แพ็กเกจแบบ Ubuntu/Debian; ถ้าไม่มี WSLg ให้ใช้ `PixClip --cli` |
 
 ### คำสั่งเตรียมเครื่อง
 
