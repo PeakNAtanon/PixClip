@@ -21,7 +21,7 @@ PixClip is a Python-first desktop media toolkit with a terminal-inspired pixel-a
 - Record Live with Streamlink or HLS and reconnect after temporary failures.
 - Detect NVIDIA/AMD hardware and choose NVENC, AMF, VA-API, or CPU encoding automatically.
 - Convert TS to MP4, transcode H.265/HEVC to H.264/AAC, cut clips, and join clips.
-- Queue, history, scheduled Live recordings, disk-space checks, progress, and ETA.
+- Queue/history with cancel, delete-without-file-removal, retry, scheduled Live recordings, disk-space checks, progress, and ETA.
 - Bilingual `วิธีใช้ / HELP` popup in Thai and English.
 - GUI and CLI modes using Python standard library and Tkinter.
 

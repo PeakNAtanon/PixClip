@@ -107,6 +107,28 @@ class QueueTests(unittest.TestCase):
         self.queue.tick()
         self.assertEqual(job["state"], "Cancelled")
 
+    def test_delete_job_removes_history_but_keeps_media(self):
+        job = self.add()
+        output = Path(self.temp.name) / "finished.ts"
+        output.write_bytes(b"media")
+        job.update(state="Cancelled", outputs=[str(output)])
+        self.queue.save()
+        self.assertTrue(self.queue.delete(job))
+        self.assertEqual(self.queue.jobs, [])
+        self.assertTrue(output.is_file())
+        self.assertEqual(JobQueue(sys.executable, self.path).jobs, [])
+
+    @patch("threading.Thread.start")
+    def test_delete_running_job_requires_cancel(self, start):
+        job = self.add()
+        self.queue.tick()
+        with self.assertRaises(ValueError):
+            self.queue.delete(job)
+        self.queue.cancel(job)
+        self.queue.events.put((job["id"], "done", (1, True)))
+        self.queue.tick()
+        self.assertTrue(self.queue.delete(job))
+
     def test_progress_and_output_markers(self):
         job = self.add()
         for line in ("media_duration=100", "out_time_us=50000000", "speed=2x", "PIXCLIP_OUTPUT=/tmp/test.mp4"):
@@ -179,7 +201,7 @@ class InstallerTests(unittest.TestCase):
         with patch.object(media.sys, "platform", "linux"), \
              patch.object(media, "tkinter_available", side_effect=[False, True]), \
              patch.object(media.shutil, "which", side_effect=lambda name: "/usr/bin/apt-get" if name == "apt-get" else "/usr/bin/sudo"), \
-             patch.object(media.os, "geteuid", return_value=1000), \
+             patch.object(media.os, "geteuid", create=True, return_value=1000), \
              patch.object(media, "run_command", return_value=(0, "")) as run:
             self.assertEqual(media.ensure_linux_tkinter(), 0)
         self.assertEqual(run.call_count, 2)

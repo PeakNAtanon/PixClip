@@ -183,6 +183,18 @@ class JobQueue:
             job.update(state="Cancelling", detail="Stopping process tree; partial files kept")
             self.active[job["id"]].set()
 
+    def delete(self, job):
+        """Remove a queued or completed job from history without deleting media files."""
+
+        if job.get("state") in {"Running", "Cancelling"} or job.get("id") in self.active:
+            raise ValueError("Cancel the running job before deleting it.")
+        for index, candidate in enumerate(self.jobs):
+            if candidate.get("id") == job.get("id"):
+                self.jobs.pop(index)
+                self.save()
+                return True
+        return False
+
     def _run(self, job, cancelled):
         process = None
         try:
