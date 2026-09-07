@@ -48,6 +48,18 @@ The installer downloads PixClip, installs `python3-tk` on apt-based Linux when n
 
 For a manual launch, use [`OPEN-GUI-CMD.bat`](OPEN-GUI-CMD.bat) or [`PixClip.bat`](PixClip.bat).
 
+## Using `cookies.txt`
+
+Some Live pages, including TikTok Live, may require the same logged-in browser session that can play the stream. PixClip accepts a Netscape-format `cookies.txt` export:
+
+1. Sign in to the website in your browser.
+2. Export the website cookies as a Netscape `cookies.txt` file using a trusted browser cookie export tool.
+3. Open PixClip and click `Choose` beside `Cookies: OFF`.
+4. Select the exported file, choose a Live mode, paste the URL, and click `DOWNLOAD`.
+5. Click `Clear` when you want PixClip to return to public access.
+
+PixClip remembers only the file path and does not print cookie values in the log. Treat the file like a password: never share it or commit it to Git. The repository ignores common cookie export filenames automatically.
+
 ## Manual commands
 
 ```bash
