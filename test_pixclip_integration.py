@@ -58,6 +58,10 @@ class IntegrationTests(unittest.TestCase):
                 self.assertEqual(job["state"], "Done", "\n".join(job.get("logs", [])))
                 for output in job["outputs"]:
                     self.assertGreater(media.get_media_duration(Path(output)) or 0, 2.5)
+            self.assertTrue(
+                any("[download]" in line.lower() for line in jobs[1].get("logs", [])),
+                "yt-dlp download progress was not forwarded by the worker",
+            )
             outputs = [Path(p) for p in jobs[0]["outputs"]]
             self.assertTrue(any(p.suffix == ".ts" for p in outputs))
             self.assertTrue(any(p.suffix == ".mp4" for p in outputs))

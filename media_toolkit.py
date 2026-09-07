@@ -2148,6 +2148,9 @@ def run_cli_ts_download(
             return 1
         source = candidates[0]
         output = output_directory / final_name
+        source_duration = get_media_duration(source)
+        if source_duration is not None and source_duration > 0:
+            print(f"media_duration={source_duration}", flush=True)
         print("Creating MPEG-TS without re-encoding...", flush=True)
         code, _ = run_command(
             ffmpeg,
@@ -2164,6 +2167,9 @@ def run_cli_ts_download(
                 "0",
                 "-c",
                 "copy",
+                "-progress",
+                "pipe:1",
+                "-nostats",
                 "-f",
                 "mpegts",
                 str(output),
@@ -2201,6 +2207,9 @@ def run_cli_ts_download(
                     "192k",
                     "-ar",
                     "48000",
+                    "-progress",
+                    "pipe:1",
+                    "-nostats",
                     "-f",
                     "mpegts",
                     str(output),
@@ -2918,7 +2927,7 @@ class MediaToolkitApp(WorkflowUI):
         except self.tk.TclError:
             pass
         for option, value in (
-            ("*TCombobox*Listbox.background", self.COLORS["input"]),
+            ("*TCombobox*Listbox.background", self.COLORS["background"]),
             ("*TCombobox*Listbox.foreground", self.COLORS["text"]),
             ("*TCombobox*Listbox.selectBackground", self.COLORS["primary"]),
             ("*TCombobox*Listbox.selectForeground", self.COLORS["text"]),

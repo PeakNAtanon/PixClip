@@ -76,6 +76,10 @@ class WorkflowUI:
             self.jobs.add(url, self.download_mode_var.get(), self.output_directory,
                 self.quality_var.get(), self.auto_mp4_var.get(), reserve_gb=self.reserve_var.get(),
                 cookies_file=self.cookies_file)
+            if self.jobs.paused:
+                warning = "WARNING: Download added, but Queue is paused. Press Resume queue to start."
+                self.append_log(warning)
+                self.status_label.configure(text="Queue paused - press Resume queue to start.", fg=self.COLORS["warning"])
             self.show_queue()
         except (OSError, ValueError, self.tk.TclError) as exc:
             messagebox.showerror("Add download", str(exc), parent=self.root)
@@ -109,9 +113,13 @@ class WorkflowUI:
                 button.configure(state="disabled" if active else "normal")
             if active:
                 first = active[0]
-                self.status_label.configure(text=f"Queue: {len(active)} running | {first['detail'][:100]}", fg=self.COLORS["info"])
-                self.progress.pack(side="bottom", fill="x", pady=(3, 0))
                 progress = first.get("progress")
+                progress_text = "--" if progress is None else f"{progress:.1f}%"
+                self.status_label.configure(
+                    text=f"Queue: {len(active)} running | Progress {progress_text} | {first['detail'][:80]}",
+                    fg=self.COLORS["info"],
+                )
+                self.progress.pack(side="bottom", fill="x", pady=(3, 0))
                 self.progress.stop()
                 if progress is not None:
                     self.progress.configure(mode="determinate", value=progress, maximum=100)
@@ -119,6 +127,11 @@ class WorkflowUI:
                     self.progress.configure(mode="indeterminate")
                     self.progress.start(100)
                 self.queue_progress_visible = True
+            elif self.jobs.paused and queued:
+                self.status_label.configure(
+                    text=f"Queue paused | {queued} waiting - press Resume queue",
+                    fg=self.COLORS["warning"],
+                )
             elif self.queue_progress_visible:
                 self.progress.stop()
                 self.progress.pack_forget()
@@ -172,15 +185,33 @@ class WorkflowUI:
             return tk.Label(parent, text=text, bg=self.COLORS["background"], fg=self.COLORS["text"], font=(self.mono_font, 9), anchor="w")
         top = tk.Frame(window, bg=self.COLORS["background"])
         top.pack(fill="x", padx=16, pady=12)
-        label(top, "Parallel downloads (1-4):").pack(side="left")
+        label(top, "Parallel downloads (1-5):").pack(side="left")
         limit_var = tk.IntVar(value=self.jobs.limit)
         def settings():
             try:
-                self.jobs.limit = max(1, min(4, limit_var.get()))
+                self.jobs.limit = max(1, min(5, limit_var.get()))
                 self.jobs.save()
             except tk.TclError:
                 pass
-        spin = tk.Spinbox(top, from_=1, to=4, textvariable=limit_var, width=3, command=settings)
+        spin = tk.Spinbox(
+            top,
+            from_=1,
+            to=5,
+            textvariable=limit_var,
+            width=3,
+            command=settings,
+            bg=self.COLORS["background"],
+            fg=self.COLORS["text"],
+            buttonbackground=self.COLORS["surface_raised"],
+            activebackground=self.COLORS["primary_pressed"],
+            insertbackground=self.COLORS["text"],
+            selectbackground=self.COLORS["primary"],
+            selectforeground=self.COLORS["text"],
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=self.COLORS["border"],
+            highlightcolor=self.COLORS["primary"],
+        )
         spin.pack(side="left", padx=8)
         spin.bind("<FocusOut>", lambda e: settings())
         spin.bind("<Return>", lambda e: settings())
@@ -200,6 +231,17 @@ class WorkflowUI:
         style = ttk.Style(window)
         style.configure("PixClip.Treeview", background=self.COLORS["input"], fieldbackground=self.COLORS["input"], foreground=self.COLORS["text"], rowheight=27, font=(self.mono_font, 9))
         style.configure("PixClip.Treeview.Heading", background=self.COLORS["surface"], foreground=self.COLORS["text"], font=(self.mono_font, 9, "bold"))
+        style.map(
+            "PixClip.Treeview.Heading",
+            background=[
+                ("pressed", self.COLORS["primary_pressed"]),
+                ("active", self.COLORS["surface_raised"]),
+            ],
+            foreground=[
+                ("pressed", self.COLORS["text"]),
+                ("active", self.COLORS["text"]),
+            ],
+        )
         style.map("PixClip.Treeview", background=[("selected", self.COLORS["primary"])] )
         self.queue_tree = ttk.Treeview(table, columns=("state", "progress", "url", "detail"), show="headings", selectmode="browse", style="PixClip.Treeview")
         for name, width in (("state", 90), ("progress", 75), ("url", 280), ("detail", 360)):
@@ -272,18 +314,68 @@ class WorkflowUI:
         urls = tk.Text(form, height=3, bg=self.COLORS["input"], fg=self.COLORS["text"], insertbackground=self.COLORS["text"])
         urls.pack(fill="x", pady=5)
         urls.insert("1.0", self.url_var.get())
+
+        schedule_title = label(form, "[ SCHEDULE LIVE ]  Schedule a Live recording")
+        schedule_title.configure(fg=self.COLORS["info"], font=(self.mono_font, 9, "bold"))
+        schedule_title.pack(fill="x", pady=(4, 2))
+        schedule_hint = label(
+            form,
+            "Record now: use the main Download button  |  Schedule: enter a future time below  |  Keep PixClip open.",
+        )
+        schedule_hint.configure(wraplength=740, justify="left", fg=self.COLORS["warning"])
+        schedule_hint.pack(fill="x", pady=(0, 5))
+
         schedule = tk.Frame(form, bg=self.COLORS["background"])
         schedule.pack(fill="x")
         start_var, duration_var = tk.StringVar(), tk.StringVar(value="60")
-        label(schedule, "Live start (local YYYY-MM-DD HH:MM):").grid(row=0, column=0, sticky="w")
-        tk.Entry(schedule, textvariable=start_var, width=20).grid(row=0, column=1, padx=8)
-        label(schedule, "Minutes:").grid(row=0, column=2)
-        tk.Entry(schedule, textvariable=duration_var, width=6).grid(row=0, column=3, padx=8)
-        label(schedule, "Reserve GiB:").grid(row=1, column=0, sticky="w", pady=6)
-        tk.Spinbox(schedule, from_=0.25, to=100, increment=.25, textvariable=self.reserve_var, width=6).grid(row=1, column=1, sticky="w", padx=8)
-        hint = label(form, "Leave start blank to record now. Live duration includes reconnect waits. Keep PixClip open and the computer awake.")
-        hint.configure(wraplength=740, justify="left", fg=self.COLORS["warning"])
-        hint.pack(fill="x", pady=4)
+        label(schedule, "Start time (YYYY-MM-DD HH:MM):").grid(row=0, column=0, sticky="w", pady=3)
+        tk.Entry(
+            schedule,
+            textvariable=start_var,
+            width=22,
+            bg=self.COLORS["input"],
+            fg=self.COLORS["text"],
+            insertbackground=self.COLORS["text"],
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=self.COLORS["border"],
+            highlightcolor=self.COLORS["primary"],
+        ).grid(row=0, column=1, sticky="w", padx=8, pady=3)
+        label(schedule, "Example: 2026-09-08 20:30").grid(row=0, column=2, sticky="w", pady=3)
+        label(schedule, "Duration:").grid(row=1, column=0, sticky="w", pady=3)
+        tk.Spinbox(
+            schedule,
+            from_=1,
+            to=10080,
+            increment=1,
+            textvariable=duration_var,
+            width=7,
+            bg=self.COLORS["input"],
+            fg=self.COLORS["text"],
+            buttonbackground=self.COLORS["surface_raised"],
+            insertbackground=self.COLORS["text"],
+        ).grid(row=1, column=1, sticky="w", padx=8, pady=3)
+        label(schedule, "minutes").grid(row=1, column=2, sticky="w", pady=3)
+        label(schedule, "Free space:").grid(row=2, column=0, sticky="w", pady=3)
+        tk.Spinbox(
+            schedule,
+            from_=0.25,
+            to=100,
+            increment=.25,
+            textvariable=self.reserve_var,
+            width=7,
+            bg=self.COLORS["input"],
+            fg=self.COLORS["text"],
+            buttonbackground=self.COLORS["surface_raised"],
+            insertbackground=self.COLORS["text"],
+        ).grid(row=2, column=1, sticky="w", padx=8, pady=3)
+        label(schedule, "GiB free space").grid(row=2, column=2, sticky="w", pady=3)
+        schedule_note = label(
+            form,
+            "Format: YYYY-MM-DD HH:MM and the time must be in the future | Live duration includes reconnect waits.",
+        )
+        schedule_note.configure(wraplength=740, justify="left", fg=self.COLORS["muted"])
+        schedule_note.pack(fill="x", pady=(4, 2))
         def add(scheduled):
             from media_toolkit import STREAMLINK_LIVE_MODE, LIVE_TS_NVENC_MODE, AUTO_LIVE_TS_MODE
             try:
@@ -294,12 +386,22 @@ class WorkflowUI:
                 if scheduled:
                     if self.download_mode_var.get() not in (STREAMLINK_LIVE_MODE, LIVE_TS_NVENC_MODE, AUTO_LIVE_TS_MODE):
                         raise ValueError("Select a Live Streamlink, Live NVENC, or Auto GPU/CPU mode on the main window first.")
-                    start = datetime.strptime(start_var.get().strip(), "%Y-%m-%d %H:%M").timestamp() if start_var.get().strip() else 0
-                    if start and start <= time.time():
-                        raise ValueError("Start time must be in the future")
-                    duration = float(duration_var.get()) * 60
-                    if not math.isfinite(duration) or duration <= 0:
-                        raise ValueError("Duration must be a positive number of minutes")
+                    if not start_var.get().strip():
+                        raise ValueError("Enter a future start date/time. For an immediate Live recording, use the main Download button.")
+                    start_text = start_var.get().strip()
+                    try:
+                        start = datetime.strptime(start_text, "%Y-%m-%d %H:%M").timestamp()
+                    except ValueError as exc:
+                        raise ValueError("Use Start format YYYY-MM-DD HH:MM, for example 2026-09-08 20:30") from exc
+                    if start <= time.time():
+                        raise ValueError("Start time must be in the future. Example: 2026-09-08 20:30")
+                    try:
+                        duration_minutes = float(duration_var.get())
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError("Duration must be a number of minutes, for example 60") from exc
+                    if not math.isfinite(duration_minutes) or duration_minutes <= 0:
+                        raise ValueError("Duration must be greater than 0 minutes")
+                    duration = duration_minutes * 60
                 from urllib.parse import urlparse
                 if any(urlparse(url).scheme not in ("http", "https") or not urlparse(url).netloc for url in links):
                     raise ValueError("Every line must be a valid http(s) URL")
@@ -315,7 +417,7 @@ class WorkflowUI:
         buttons = tk.Frame(form, bg=self.COLORS["background"])
         buttons.pack(fill="x")
         self._button(buttons, "Add downloads now", lambda: add(False), bg=self.COLORS["primary"]).pack(side="left")
-        self._button(buttons, "Add timed Live", lambda: add(True), icon="schedule").pack(side="left", padx=8)
+        self._button(buttons, "Schedule Live", lambda: add(True), icon="schedule").pack(side="left", padx=8)
         self.refresh_queue()
 
     def retry_local(self, job):
@@ -492,8 +594,8 @@ class WorkflowUI:
                     ("03  โหลด Live และ TS", "เลือก Live - Auto GPU/CPU เพื่อให้ PixClip ตรวจ NVIDIA/AMD และเลือก NVENC/AMF/VA-API หรือ CPU ให้อัตโนมัติ หรือเลือก Live - Streamlink / Live - NVIDIA NVENC เองก็ได้ หาก TikTok มองไม่เห็น Live ให้เลือกไฟล์ Netscape `cookies.txt` ก่อนเพิ่มงาน โปรแกรมจะแสดงเปอร์เซ็นต์และเวลาโดยประมาณเมื่อคำนวณได้"),
                     ("04  Cookies สำหรับเว็บที่ต้องล็อกอิน", "1) ล็อกอินเว็บในเบราว์เซอร์ แล้ว export Cookies เป็นไฟล์ Netscape `cookies.txt` 2) กด Choose ข้าง Cookies: OFF แล้วเลือกไฟล์ 3) ตรวจชื่อไฟล์ที่แสดง จากนั้นเพิ่มงาน Live หรือดาวน์โหลด 4) กด Clear เมื่อต้องการเลิกใช้ Cookies PixClip จำเฉพาะ path และไม่แสดงค่า Cookies ใน Log ห้ามแชร์ไฟล์นี้"),
                     ("05  TS → MP4 อัตโนมัติ", "เปิดตัวเลือก TS -> MP4 (keep TS) ก่อนเพิ่มงาน โปรแกรมจะแปลงด้วยการ copy stream และเก็บไฟล์ TS ต้นฉบับไว้ หากเปิดไม่ได้ให้ใช้โหมด TS to MP4 - Compatible H.264"),
-                    ("06  Queue / History", "กด Queue / History เพื่อเพิ่มหลาย URL (หนึ่งบรรทัดต่อหนึ่งลิงก์), ตั้งงานพร้อมกัน 1–4 งาน, หยุดรับงานใหม่ด้วย Pause queue, ยกเลิก, ลบรายการออกจากประวัติ (ไม่ลบไฟล์), ลองใหม่, เปิดไฟล์, เปิดโฟลเดอร์ หรือดู Job log ได้ งานใหม่จะถูกแยกเป็น Videos, Live, Playlists หรือ Audio ตามวันที่และชื่อแหล่งที่มา"),
-                    ("07  ตั้งเวลาอัด Live", "เลือกโหมด Live ก่อน เปิด Queue / History แล้วใส่เวลาเครื่องรูปแบบ YYYY-MM-DD HH:MM และจำนวนนาที จากนั้นกด Add timed Live ต้องเปิด PixClip และให้เครื่องตื่นอยู่ตลอดช่วงเวลาอัด"),
+                    ("06  Queue / History", "กด Queue / History เพื่อเพิ่มหลาย URL (หนึ่งบรรทัดต่อหนึ่งลิงก์), ตั้งงานพร้อมกัน 1–5 งาน, หยุดรับงานใหม่ด้วย Pause queue, ยกเลิก, ลบรายการออกจากประวัติ (ไม่ลบไฟล์), ลองใหม่, เปิดไฟล์, เปิดโฟลเดอร์ หรือดู Job log ได้ งานใหม่จะถูกแยกเป็น Videos, Live, Playlists หรือ Audio ตามวันที่และชื่อแหล่งที่มา"),
+                    ("07  ตั้งเวลาอัด Live", "เลือกโหมด Live ก่อน เปิด Queue / History กรอกเวลาเริ่มที่เป็นอนาคตตามรูปแบบ YYYY-MM-DD HH:MM และจำนวนนาที แล้วกด Schedule Live หากจะอัดทันทีให้ใช้ปุ่ม Download หลัก ต้องเปิด PixClip และให้เครื่องตื่นอยู่ตลอดช่วงเวลาอัด"),
                     ("08  ตัดคลิปแบบมีพรีวิว", "กด Cut clip → Choose video รออ่านความยาว แล้วเลื่อนแถบเพื่อดูภาพเฟรม ตำแหน่งปัจจุบันจะแสดงเป็น HH : MM : SS และสามารถกรอกเวลาเริ่ม/สิ้นสุดแยกช่องได้ กด Set start here และ Set end here ได้ Fast cut เร็วกว่า ส่วน Compatible MP4 ตัดตรงเวลามากกว่า"),
                     ("09  แปลงและต่อคลิป", "เลือกโหมดในแผง CONVERT แล้วกด 2 CHOOSE VIDEO FILE สำหรับต่อคลิปให้กด Join clips และเลือก Fast เมื่อไฟล์มีรูปแบบตรงกัน หรือ Compatible MP4 เมื่อต้องเข้ารหัสใหม่"),
                     ("10  ถ้างานมีปัญหา", "ตรวจ Install tools และพื้นที่ว่างก่อน ลอง Best available หากจำกัดความละเอียดแล้วไม่มีรูปแบบที่รองรับ เปิด Job log เพื่อดูสาเหตุ และกด Retry หลังแก้ปัญหาแล้ว"),
@@ -513,8 +615,8 @@ class WorkflowUI:
                     ("03  Record Live and TS", "Choose Live - Auto GPU/CPU to detect NVIDIA or AMD and select NVENC, AMF, VA-API, or CPU automatically. You can also choose Live - Streamlink or Live - NVIDIA NVENC manually. If TikTok hides a Live stream, choose a Netscape `cookies.txt` file before adding the job. Progress and an estimated time appear when available."),
                     ("04  Cookies for login required sites", "1) Sign in to the site in your browser and export Cookies as a Netscape `cookies.txt` file. 2) Click Choose beside Cookies: OFF and select the file. 3) Confirm the file name, then add the Live or download job. 4) Click Clear to stop using Cookies. PixClip remembers only the path and never displays cookie values in the log. Never share this file."),
                     ("05  Automatic TS to MP4", "Enable TS -> MP4 (keep TS) before adding a job. PixClip remuxes with stream copy and keeps the original TS file. If the MP4 container is not compatible, use TS to MP4 - Compatible H.264."),
-                    ("06  Queue / History", "Use Queue / History to add multiple URLs, set 1-4 parallel jobs, pause new jobs, cancel, delete history entries without deleting media files, retry, open files or folders, and view job logs. New downloads are grouped under Videos, Live, Playlists, or Audio by date and source."),
-                    ("07  Schedule a Live recording", "Choose a Live mode, open Queue / History, enter local time as YYYY-MM-DD HH:MM and the number of minutes, then press Add timed Live. Keep PixClip open and keep the computer awake."),
+                    ("06  Queue / History", "Use Queue / History to add multiple URLs, set 1-5 parallel jobs, pause new jobs, cancel, delete history entries without deleting media files, retry, open files or folders, and view job logs. New downloads are grouped under Videos, Live, Playlists, or Audio by date and source."),
+                    ("07  Schedule a Live recording", "Choose a Live mode, open Queue / History, enter a future local time as YYYY-MM-DD HH:MM and the number of minutes, then press Schedule Live. For an immediate recording, use the main Download button. Keep PixClip open and keep the computer awake."),
                     ("08  Cut with preview", "Click Cut clip -> Choose video, wait for the duration, then move the slider to preview frames. The current position is shown as HH : MM : SS, and Start/End can be entered in separate fields. Use Set start here and Set end here. Fast cut is quicker; Compatible MP4 is more precise."),
                     ("09  Convert and join", "Choose a mode in CONVERT and press 2 CHOOSE VIDEO FILE. To join clips, press Join clips and use Fast when stream settings match, or Compatible MP4 to re-encode."),
                     ("10  Troubleshooting", "Check Install tools and free disk space first. Try Best available if a resolution limit has no compatible format. Open Job log for details and press Retry after fixing the issue."),

@@ -33,4 +33,4 @@ Use `unittest`, `test_*.py` filenames, and `test_*` methods. Add behavioral regr
 
 ## Commit & Pull Request Guidelines
 
-This checkout has no Git metadata, so existing commit conventions cannot be verified. Use concise imperative subjects, such as `Fix scheduled recording cancellation`. PRs should explain behavior changes, reference relevant issues, list validation and platform limitations, and include screenshots for GUI changes. Exclude downloaded media, private history/logs, `__pycache__/`, and machine-specific `.lnk` files from source changes.
+Use concise imperative commit subjects, matching the existing history (for example, `Fix scheduled recording cancellation` or `Add queue progress reporting`). PRs should explain behavior changes, reference relevant issues, list validation and platform limitations, and include screenshots for GUI changes. Exclude downloaded media, private history/logs, `__pycache__/`, `.venv/`, and machine-specific `.lnk` files from source changes.

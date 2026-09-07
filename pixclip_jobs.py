@@ -25,6 +25,31 @@ TERMINAL = {"Done", "Failed", "Cancelled", "Interrupted"}
 GIB = 1024 ** 3
 
 
+def parse_ffmpeg_progress_seconds(text):
+    """Read FFmpeg's progress markers in microseconds or timecode form."""
+
+    line = str(text).strip()
+    if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
+        try:
+            return max(0.0, float(line.split("=", 1)[1]) / 1_000_000.0)
+        except ValueError:
+            return None
+    if line.startswith("out_time="):
+        try:
+            hours, minutes, seconds = line.split("=", 1)[1].split(":")
+            return max(0.0, float(hours) * 3600.0 + float(minutes) * 60.0 + float(seconds))
+        except (ValueError, AttributeError):
+            return None
+    return None
+
+
+def format_elapsed(seconds):
+    total = max(0, int(seconds))
+    hours, remainder = divmod(total, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
 def safe_storage_component(value, fallback="unknown"):
     """Make a readable folder-name component safe on Windows and Unix."""
 
@@ -182,7 +207,7 @@ class JobQueue:
             data = json.loads(self.path.read_text(encoding="utf-8"))
             if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
                 raise ValueError("Invalid jobs file")
-            self.limit = max(1, min(4, int(data.get("limit", 1))))
+            self.limit = max(1, min(5, int(data.get("limit", 1))))
             self.paused = bool(data.get("paused", False))
             for job in data["jobs"]:
                 if not isinstance(job, dict) or not all(k in job for k in ("id", "url", "mode", "folder", "state")):
@@ -352,13 +377,13 @@ class JobQueue:
                         job["media_duration"] = float(value.split("=", 1)[1])
                     except ValueError:
                         pass
-                if value.startswith("out_time_us=") and job.get("media_duration", 0) > 0:
-                    try:
-                        elapsed = float(value.split("=", 1)[1]) / 1_000_000
-                        job["media_elapsed"] = elapsed
+                elapsed = parse_ffmpeg_progress_seconds(value)
+                if elapsed is not None:
+                    job["media_elapsed"] = elapsed
+                    if job.get("media_duration", 0) > 0:
                         job["progress"] = min(99, 100 * elapsed / job["media_duration"])
-                    except ValueError:
-                        pass
+                    elif "live" in str(job.get("mode", "")).lower():
+                        job["detail"] = f"Live recording | REC {format_elapsed(elapsed)}"
                 if value.startswith("speed=") and job.get("media_duration", 0) > 0:
                     try:
                         speed = float(value.split("=", 1)[1].rstrip("x"))
@@ -441,9 +466,9 @@ def worker(job):
         if live and not remuxing and deadline and time.time() >= deadline:
             raise TimeoutError("Scheduled Live window ended before capture could start")
         if is_ytdlp:
+            # Keep yt-dlp's normal [download] progress output. The worker
+            # already discovers completed files by scanning its output folder.
             args = quality_arguments(args, quality)
-            if not capture and not any(str(work) in arg for arg in args):
-                args = ["--print", "after_move:PIXCLIP_OUTPUT=%(filepath)s", *args]
         if "streamlink" in name:
             args = ["--no-config", *args]
             if quality != QUALITIES[0]:

@@ -32,10 +32,10 @@ class QueueTests(unittest.TestCase):
     def test_persist_settings_and_retry(self):
         job = self.add(quality=QUALITIES[2], auto_mp4=True, duration=60)
         job["state"] = "Failed"
-        self.queue.limit = 3
+        self.queue.limit = 5
         self.queue.save()
         restored = JobQueue(sys.executable, self.path)
-        self.assertEqual(restored.limit, 3)
+        self.assertEqual(restored.limit, 5)
         self.assertEqual(restored.jobs[0]["output_folder"], job["output_folder"])
         retried = restored.retry(restored.jobs[0])
         self.assertNotEqual(job["id"], retried["id"])
@@ -175,6 +175,14 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(job["progress"], 50)
         self.assertIn("00:25", job["detail"])
         self.assertEqual(job["outputs"], ["/tmp/test.mp4"])
+
+        live_job = self.add()
+        live_job["mode"] = media.AUTO_LIVE_TS_MODE
+        live_job["state"] = "Running"
+        self.queue.events.put((live_job["id"], "line", "out_time_ms=3723000000"))
+        self.queue.tick(allow_start=False)
+        self.assertEqual(live_job["media_elapsed"], 3723.0)
+        self.assertIn("01:02:03", live_job["detail"])
 
     def test_input_validation(self):
         for url in ("file:///etc/passwd", "http://", "abc"):
