@@ -195,6 +195,13 @@ class JobQueue:
                 return True
         return False
 
+    def clear_all(self):
+        """Clear pending jobs and history, preserving active jobs and media."""
+        self.jobs[:] = [job for job in self.jobs
+                       if job.get("state") in {"Running", "Cancelling"}
+                       or job.get("id") in self.active]
+        self.save()
+
     def _run(self, job, cancelled):
         process = None
         try:

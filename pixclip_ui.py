@@ -228,6 +228,13 @@ class WorkflowUI:
                 messagebox.showerror("Queue", str(exc), parent=window)
         for text, name in (("Cancel", "cancel"), ("Delete", "delete"), ("Retry", "retry"), ("Files", "file"), ("Open folder", "folder"), ("Job log", "log")):
             self._button(controls, text, lambda n=name: action(n)).pack(side="left", padx=(0, 6))
+        def clear_all():
+            if messagebox.askyesno("Clear all",
+                "Clear all pending jobs (including scheduled Live) and history?\n"
+                "Running jobs and media files will be kept.", parent=window):
+                self.jobs.clear_all()
+                self.refresh_queue()
+        self._button(controls, "Clear all", clear_all).pack(side="left", padx=(0, 6))
         form = tk.Frame(window, bg=self.COLORS["background"])
         form.pack(fill="x", padx=16, pady=(0, 12))
         label(form, "Add URLs (one per line). Uses the mode, quality and output folder on the main window.").pack(fill="x")
