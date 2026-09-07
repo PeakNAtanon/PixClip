@@ -494,7 +494,7 @@ class WorkflowUI:
                     ("05  TS → MP4 อัตโนมัติ", "เปิดตัวเลือก TS -> MP4 (keep TS) ก่อนเพิ่มงาน โปรแกรมจะแปลงด้วยการ copy stream และเก็บไฟล์ TS ต้นฉบับไว้ หากเปิดไม่ได้ให้ใช้โหมด TS to MP4 - Compatible H.264"),
                     ("06  Queue / History", "กด Queue / History เพื่อเพิ่มหลาย URL (หนึ่งบรรทัดต่อหนึ่งลิงก์), ตั้งงานพร้อมกัน 1–4 งาน, หยุดรับงานใหม่ด้วย Pause queue, ยกเลิก, ลบรายการออกจากประวัติ (ไม่ลบไฟล์), ลองใหม่, เปิดไฟล์, เปิดโฟลเดอร์ หรือดู Job log ได้ งานใหม่จะถูกแยกเป็น Videos, Live, Playlists หรือ Audio ตามวันที่และชื่อแหล่งที่มา"),
                     ("07  ตั้งเวลาอัด Live", "เลือกโหมด Live ก่อน เปิด Queue / History แล้วใส่เวลาเครื่องรูปแบบ YYYY-MM-DD HH:MM และจำนวนนาที จากนั้นกด Add timed Live ต้องเปิด PixClip และให้เครื่องตื่นอยู่ตลอดช่วงเวลาอัด"),
-                    ("08  ตัดคลิปแบบมีพรีวิว", "กด Cut clip → Choose video รออ่านความยาว แล้วเลื่อนแถบเพื่อดูภาพเฟรม กด Set start here และ Set end here ได้ Fast cut เร็วกว่า ส่วน Compatible MP4 ตัดตรงเวลามากกว่า"),
+                    ("08  ตัดคลิปแบบมีพรีวิว", "กด Cut clip → Choose video รออ่านความยาว แล้วเลื่อนแถบเพื่อดูภาพเฟรม ตำแหน่งปัจจุบันจะแสดงเป็น HH : MM : SS และสามารถกรอกเวลาเริ่ม/สิ้นสุดแยกช่องได้ กด Set start here และ Set end here ได้ Fast cut เร็วกว่า ส่วน Compatible MP4 ตัดตรงเวลามากกว่า"),
                     ("09  แปลงและต่อคลิป", "เลือกโหมดในแผง CONVERT แล้วกด 2 CHOOSE VIDEO FILE สำหรับต่อคลิปให้กด Join clips และเลือก Fast เมื่อไฟล์มีรูปแบบตรงกัน หรือ Compatible MP4 เมื่อต้องเข้ารหัสใหม่"),
                     ("10  ถ้างานมีปัญหา", "ตรวจ Install tools และพื้นที่ว่างก่อน ลอง Best available หากจำกัดความละเอียดแล้วไม่มีรูปแบบที่รองรับ เปิด Job log เพื่อดูสาเหตุ และกด Retry หลังแก้ปัญหาแล้ว"),
                     ("11  หมายเหตุ", "การตั้งเวลาและคิวทำงานขณะที่ PixClip เปิดอยู่เท่านั้น มาสคอตจะแสดง READY, WORKING, OK หรือ CHECK ตามสถานะงาน ไฟล์ประวัติถูกเก็บในโฟลเดอร์ข้อมูลผู้ใช้ของ Windows/Linux"),
@@ -515,7 +515,7 @@ class WorkflowUI:
                     ("05  Automatic TS to MP4", "Enable TS -> MP4 (keep TS) before adding a job. PixClip remuxes with stream copy and keeps the original TS file. If the MP4 container is not compatible, use TS to MP4 - Compatible H.264."),
                     ("06  Queue / History", "Use Queue / History to add multiple URLs, set 1-4 parallel jobs, pause new jobs, cancel, delete history entries without deleting media files, retry, open files or folders, and view job logs. New downloads are grouped under Videos, Live, Playlists, or Audio by date and source."),
                     ("07  Schedule a Live recording", "Choose a Live mode, open Queue / History, enter local time as YYYY-MM-DD HH:MM and the number of minutes, then press Add timed Live. Keep PixClip open and keep the computer awake."),
-                    ("08  Cut with preview", "Click Cut clip -> Choose video, wait for the duration, then move the slider to preview frames. Use Set start here and Set end here. Fast cut is quicker; Compatible MP4 is more precise."),
+                    ("08  Cut with preview", "Click Cut clip -> Choose video, wait for the duration, then move the slider to preview frames. The current position is shown as HH : MM : SS, and Start/End can be entered in separate fields. Use Set start here and Set end here. Fast cut is quicker; Compatible MP4 is more precise."),
                     ("09  Convert and join", "Choose a mode in CONVERT and press 2 CHOOSE VIDEO FILE. To join clips, press Join clips and use Fast when stream settings match, or Compatible MP4 to re-encode."),
                     ("10  Troubleshooting", "Check Install tools and free disk space first. Try Best available if a resolution limit has no compatible format. Open Job log for details and press Retry after fixing the issue."),
                     ("11  Notes", "Queue and scheduled recordings run only while PixClip is open. The mascot shows READY, WORKING, OK, or CHECK. Job history is stored in the Windows/Linux user data folder."),
@@ -600,8 +600,18 @@ class ClipPreview:
             command=self.seek, state="disabled")
         self.slider.pack(fill="x")
         buttons = tk.Frame(self.frame, bg=app.COLORS["background"])
-        buttons.pack(fill="x")
         from media_toolkit import format_ffmpeg_time
+        self.format_time = format_ffmpeg_time
+        self.position_var = tk.StringVar(value="Position: 00:00:00")
+        tk.Label(
+            self.frame,
+            textvariable=self.position_var,
+            bg=app.COLORS["background"],
+            fg=app.COLORS["info"],
+            anchor="w",
+            font=(app.mono_font, 9, "bold"),
+        ).pack(fill="x", pady=(2, 2))
+        buttons.pack(fill="x")
         app._button(buttons, "Set start here", lambda: start_var.set(format_ffmpeg_time(self.slider.get()))).pack(side="left")
         app._button(buttons, "Set end here", lambda: end_var.set(format_ffmpeg_time(self.slider.get()))).pack(side="left", padx=8)
         self.trace = source_var.trace_add("write", self.source_changed)
@@ -625,6 +635,10 @@ class ClipPreview:
         threading.Thread(target=probe, daemon=True).start()
 
     def seek(self, value):
+        try:
+            self.position_var.set("Position: " + self.format_time(float(value)))
+        except (TypeError, ValueError):
+            pass
         self.generation += 1
         if self.pending:
             self.frame.after_cancel(self.pending)

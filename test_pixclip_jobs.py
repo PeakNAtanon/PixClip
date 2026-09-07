@@ -227,6 +227,12 @@ class QueueTests(unittest.TestCase):
             process.stdout.close()
 
 
+class TimecodeTests(unittest.TestCase):
+    def test_timecode_supports_hours_minutes_seconds(self):
+        self.assertAlmostEqual(media.parse_timecode("01:02:03.500"), 3723.5)
+        self.assertEqual(media.format_ffmpeg_time(3723.5), "01:02:03.500")
+
+
 class CookieArgumentTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

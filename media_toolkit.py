@@ -3672,7 +3672,7 @@ class MediaToolkitApp(WorkflowUI):
         ).pack(anchor="w", padx=22, pady=(18, 0))
         tk.Label(
             dialog,
-            text="Select a video and set the start/end time as HH:MM:SS or seconds.",
+            text="Select a video and set the start/end time using HH : MM : SS fields.",
             bg=self.COLORS["background"],
             fg=self.COLORS["muted"],
             font=(self.mono_font, 9),
@@ -3726,29 +3726,98 @@ class MediaToolkitApp(WorkflowUI):
         times.grid(row=3, column=0, columnspan=2, sticky="ew")
         times.grid_columnconfigure(0, weight=1)
         times.grid_columnconfigure(1, weight=1)
-        for column, label, variable in (
-            (0, "Start time", start_var),
-            (1, "End time", end_var),
+        time_fields = {}
+
+        def split_timecode(total_seconds):
+            total_seconds = max(0.0, float(total_seconds))
+            hours, remainder = divmod(total_seconds, 3600.0)
+            minutes, seconds = divmod(remainder, 60.0)
+            if seconds >= 59.9995:
+                seconds = 0.0
+                minutes += 1
+            if minutes >= 60:
+                minutes = 0
+                hours += 1
+            seconds_text = (
+                f"{int(round(seconds)):02d}"
+                if abs(seconds - round(seconds)) < 0.0005
+                else f"{seconds:06.3f}"
+            )
+            return f"{int(hours):02d}", f"{int(minutes):02d}", seconds_text
+
+        def sync_time_fields(name):
+            fields = time_fields.get(name)
+            if not fields:
+                return
+            parsed = parse_timecode(fields["variable"].get())
+            values = split_timecode(parsed if parsed is not None else 0)
+            for variable, value in zip(fields["parts"], values):
+                variable.set(value)
+
+        def commit_time_fields(name):
+            fields = time_fields[name]
+            try:
+                hours = int(fields["parts"][0].get() or "0")
+                minutes = int(fields["parts"][1].get() or "0")
+                seconds = float(fields["parts"][2].get() or "0")
+                if (hours < 0 or not 0 <= minutes < 60 or not 0 <= seconds < 60
+                        or not math.isfinite(seconds)):
+                    raise ValueError
+            except (TypeError, ValueError):
+                sync_time_fields(name)
+                return
+            fields["variable"].set(format_ffmpeg_time(hours * 3600 + minutes * 60 + seconds))
+
+        def commit_time_field_event(event, name):
+            commit_time_fields(name)
+            return "break"
+
+        for column, label, name, variable in (
+            (0, "Start time", "start", start_var),
+            (1, "End time", "end", end_var),
         ):
+            side_pad = (0, 12) if column == 0 else (12, 0)
             tk.Label(
                 times,
-                text=label,
+                text=f"{label}  (HH : MM : SS)",
                 bg=self.COLORS["background"],
                 fg=self.COLORS["info"],
                 font=(self.mono_font, 10, "bold"),
-            ).grid(row=0, column=column, sticky="w", padx=(0, 12) if column == 0 else (12, 0), pady=(0, 5))
-            tk.Entry(
-                times,
-                textvariable=variable,
-                bg=self.COLORS["input"],
-                fg=self.COLORS["text"],
-                insertbackground=self.COLORS["text"],
-                relief="flat",
-                highlightthickness=1,
-                highlightbackground=self.COLORS["border"],
-                highlightcolor=self.COLORS["primary"],
-                font=(self.mono_font, 10),
-            ).grid(row=1, column=column, sticky="ew", padx=(0, 12) if column == 0 else (12, 0), pady=(0, 14))
+            ).grid(row=0, column=column, sticky="w", padx=side_pad, pady=(0, 5))
+            time_box = tk.Frame(times, bg=self.COLORS["background"])
+            time_box.grid(row=1, column=column, sticky="w", padx=side_pad, pady=(0, 14))
+            parts = []
+            for index, (_, width) in enumerate((("HH", 4), ("MM", 4), ("SS", 7))):
+                if index:
+                    tk.Label(
+                        time_box,
+                        text=":",
+                        bg=self.COLORS["background"],
+                        fg=self.COLORS["muted"],
+                        font=(self.mono_font, 11, "bold"),
+                    ).pack(side="left", padx=2)
+                part_var = tk.StringVar()
+                entry = tk.Entry(
+                    time_box,
+                    textvariable=part_var,
+                    width=width,
+                    justify="center",
+                    bg=self.COLORS["input"],
+                    fg=self.COLORS["text"],
+                    insertbackground=self.COLORS["text"],
+                    relief="flat",
+                    highlightthickness=1,
+                    highlightbackground=self.COLORS["border"],
+                    highlightcolor=self.COLORS["primary"],
+                    font=(self.mono_font, 10),
+                )
+                entry.pack(side="left")
+                entry.bind("<FocusOut>", lambda _event, key=name: commit_time_fields(key))
+                entry.bind("<Return>", lambda event, key=name: commit_time_field_event(event, key))
+                parts.append(part_var)
+            time_fields[name] = {"variable": variable, "parts": parts}
+            variable.trace_add("write", lambda *_args, key=name: sync_time_fields(key))
+            sync_time_fields(name)
 
         tk.Label(
             form,
