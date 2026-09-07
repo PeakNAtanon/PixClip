@@ -57,6 +57,7 @@ CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 CREATE_NEW_CONSOLE = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
 CREATE_NEW_PROCESS_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 WINDOWS_APP_USER_MODEL_ID = "PixClip.UniversalMediaToolkit"
+STREAMLINK_VENV_DIR = BASE_DIR / ".venv"
 
 TS_DOWNLOAD_MODE = "Video/Live - MPEG-TS (.ts)"
 AUTO_LIVE_TS_MODE = "Live - MPEG-TS (.ts) - Auto GPU/CPU"
@@ -360,7 +361,13 @@ def find_tool(name: str) -> Optional[str]:
 
 
 def find_streamlink() -> Optional[str]:
-    """Find Streamlink, including Python user-install script directories."""
+    """Find Streamlink, including PixClip's private venv and user installs."""
+
+    venv_directory = STREAMLINK_VENV_DIR / ("Scripts" if IS_WINDOWS else "bin")
+    for candidate in tool_candidates("streamlink.exe"):
+        path = venv_directory / candidate
+        if path.is_file():
+            return str(path)
 
     direct = find_tool("streamlink.exe")
     if direct:
@@ -1601,24 +1608,68 @@ def ensure_linux_tkinter() -> int:
 
 
 def install_streamlink() -> int:
-    """Install Streamlink for the current Python user and validate its CLI."""
+    """Install Streamlink in a private venv on Unix and validate its CLI."""
 
     python = python_executable()
-    print("Installing Streamlink with Python pip...", flush=True)
-    code, _ = run_command(
-        python,
-        ["-m", "pip", "install", "--user", "--upgrade", "streamlink"],
-        BASE_DIR,
-    )
-    if code != 0:
-        print("The user install failed; retrying without --user...", flush=True)
+    if IS_WINDOWS:
+        print("Installing Streamlink with Python pip...", flush=True)
         code, _ = run_command(
             python,
-            ["-m", "pip", "install", "--upgrade", "streamlink"],
+            ["-m", "pip", "install", "--user", "--upgrade", "streamlink"],
             BASE_DIR,
         )
+        if code != 0:
+            print("The user install failed; retrying without --user...", flush=True)
+            code, _ = run_command(
+                python,
+                ["-m", "pip", "install", "--upgrade", "streamlink"],
+                BASE_DIR,
+            )
+    else:
+        print("Creating PixClip's private Python environment for Streamlink...", flush=True)
+        code, _ = run_command(
+            python,
+            ["-m", "venv", str(STREAMLINK_VENV_DIR)],
+            BASE_DIR,
+        )
+        if code != 0:
+            apt_get = shutil.which("apt-get")
+            command = [apt_get] if apt_get else []
+            if command and os.geteuid() != 0:
+                sudo = shutil.which("sudo")
+                if sudo:
+                    command.insert(0, sudo)
+                else:
+                    command = []
+            if command:
+                print("Python venv support is missing; installing python3-venv...", flush=True)
+                package_code, _ = run_command(
+                    command[0],
+                    [*command[1:], "install", "-y", "python3-venv"],
+                    BASE_DIR,
+                )
+                if package_code == 0:
+                    code, _ = run_command(
+                        python,
+                        ["-m", "venv", str(STREAMLINK_VENV_DIR)],
+                        BASE_DIR,
+                    )
+                else:
+                    code = package_code
+        if code == 0:
+            venv_python = STREAMLINK_VENV_DIR / ("Scripts" if IS_WINDOWS else "bin") / (
+                "python.exe" if IS_WINDOWS else "python"
+            )
+            print("Installing Streamlink into PixClip's private environment...", flush=True)
+            code, _ = run_command(
+                str(venv_python),
+                ["-m", "pip", "install", "--upgrade", "streamlink"],
+                BASE_DIR,
+            )
     if code != 0:
         print(f"ERROR: Streamlink installation failed with exit code {code}.", flush=True)
+        if not IS_WINDOWS and not shutil.which("apt-get"):
+            print("Install your distro's Python venv package, then run Install tools again.", flush=True)
         return code
 
     streamlink = find_streamlink()

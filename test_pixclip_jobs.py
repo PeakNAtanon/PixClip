@@ -265,6 +265,35 @@ class CookieArgumentTests(unittest.TestCase):
 
 
 class InstallerTests(unittest.TestCase):
+    def test_find_streamlink_discovers_private_venv(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            streamlink = base / ".venv" / "bin" / "streamlink"
+            streamlink.parent.mkdir(parents=True)
+            streamlink.write_text("#!/bin/sh\n", encoding="utf-8")
+            with patch.object(media, "BASE_DIR", base), \
+                 patch.object(media, "STREAMLINK_VENV_DIR", base / ".venv"), \
+                 patch.object(media, "IS_WINDOWS", False):
+                self.assertEqual(media.find_streamlink(), str(streamlink))
+
+    def test_streamlink_uses_private_venv_on_unix(self):
+        with patch.object(media, "IS_WINDOWS", False), \
+             patch.object(media, "python_executable", return_value="/usr/bin/python3"), \
+             patch.object(media, "run_command", return_value=(0, "")) as run, \
+             patch.object(media, "find_streamlink", return_value=str(media.STREAMLINK_VENV_DIR / "bin" / "streamlink")), \
+             patch.object(media, "test_executable"):
+            self.assertEqual(media.install_streamlink(), 0)
+        self.assertEqual(run.call_args_list[0].args, (
+            "/usr/bin/python3",
+            ["-m", "venv", str(media.STREAMLINK_VENV_DIR)],
+            media.BASE_DIR,
+        ))
+        self.assertEqual(run.call_args_list[1].args, (
+            str(media.STREAMLINK_VENV_DIR / "bin" / "python"),
+            ["-m", "pip", "install", "--upgrade", "streamlink"],
+            media.BASE_DIR,
+        ))
+
     def test_linux_tkinter_skips_when_ready(self):
         with patch.object(media.sys, "platform", "linux"), \
              patch.object(media, "tkinter_available", return_value=True), \
