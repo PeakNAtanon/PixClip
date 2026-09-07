@@ -2977,6 +2977,15 @@ class MediaToolkitApp(WorkflowUI):
             self.mascot_canvas = tk.Canvas(header, width=80, height=100, bg=self.COLORS["header"], highlightthickness=0)
             self.mascot_canvas.pack(side="left", padx=(24, 0))
             self.mascot_canvas.create_image(40, 40, image=self.mascot_image, tags="mascot")
+            # Canvas eyelids keep the original artwork intact and follow its motion.
+            self.mascot_eyelids = []
+            for left, right in ((25, 36), (42, 52)):
+                face = "#%02x%02x%02x" % self.mascot_image.get(left, 32)
+                cover = self.mascot_canvas.create_rectangle(
+                    left, 34, right, 47, fill=face, outline="", state="hidden")
+                lid = self.mascot_canvas.create_rectangle(
+                    left + 1, 40, right - 1, 42, fill="#050d1a", outline="", state="hidden")
+                self.mascot_eyelids.append((left, right, cover, lid))
             self.mascot_canvas.create_text(40, 90, text="READY", fill=self.COLORS["success"], font=(self.mono_font, 8), tags="mood")
         title_block = tk.Frame(header, bg=self.COLORS["header"])
         title_block.pack(side="left", fill="both", expand=True)

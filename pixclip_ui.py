@@ -142,6 +142,13 @@ class WorkflowUI:
             dy = int(math.sin(self.mascot_frame * .7) * 3) if state == "Working" else 0
             dx = (2 if self.mascot_frame % 2 else -2) if state == "Check log" and self.mascot_frame % 20 < 4 else 0
             self.mascot_canvas.coords("mascot", 40 + dx, 40 + dy)
+            # One 250 ms blink every four seconds, including while idle.
+            eyelid_state = "normal" if self.mascot_frame % 16 == 0 else "hidden"
+            for left, right, cover, lid in self.mascot_eyelids:
+                self.mascot_canvas.coords(cover, left + dx, 34 + dy, right + dx, 47 + dy)
+                self.mascot_canvas.coords(lid, left + 1 + dx, 40 + dy, right - 1 + dx, 42 + dy)
+                self.mascot_canvas.itemconfigure(cover, state=eyelid_state)
+                self.mascot_canvas.itemconfigure(lid, state=eyelid_state)
             self.mascot_canvas.itemconfigure("mood", text={"Working": "REC / ...", "Done": "OK!", "Check log": "! CHECK", "Ready": "READY"}.get(state, "READY"),
                 fill=self.COLORS["warning"] if state == "Check log" else self.COLORS["success"])
         if self.queue_window is not None and self.queue_window.winfo_exists():
