@@ -18,10 +18,78 @@ import time
 import uuid
 from pathlib import Path
 from queue import Queue, Empty
+from urllib.parse import urlparse
 
 QUALITIES = ("Best available", "Up to 2160p", "Up to 1080p", "Up to 720p", "Up to 480p", "Audio only (MP3)")
 TERMINAL = {"Done", "Failed", "Cancelled", "Interrupted"}
 GIB = 1024 ** 3
+
+
+def safe_storage_component(value, fallback="unknown"):
+    """Make a readable folder-name component safe on Windows and Unix."""
+
+    cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", str(value))
+    cleaned = re.sub(r"\s+", " ", cleaned).strip().rstrip(" .")
+    if cleaned.upper() in {"CON", "PRN", "AUX", "NUL"}:
+        cleaned += "_"
+    return (cleaned[:100] or fallback).strip()
+
+
+def storage_category(mode):
+    """Return the top-level folder used for a download mode."""
+
+    value = str(mode or "").lower()
+    if "live" in value:
+        return "Live"
+    if "playlist" in value:
+        return "Playlists"
+    if "mp3" in value or "audio" in value:
+        return "Audio"
+    return "Videos"
+
+
+def source_label(url):
+    """Get a short source/channel label for a readable output folder."""
+
+    parsed = urlparse(str(url or "").strip())
+    host = parsed.netloc.rsplit("@", 1)[-1].split(":", 1)[0].lower()
+    host = host[4:] if host.startswith("www.") else host
+    parts = [part for part in parsed.path.split("/") if part]
+    if host.endswith(("kick.com", "twitch.tv", "tiktok.com")) and parts:
+        label = parts[0].lstrip("@")
+    elif host.endswith("youtube.com") or host == "youtu.be":
+        label = "youtube"
+        if parts and parts[0].startswith("@"):
+            label = parts[0].lstrip("@")
+    else:
+        label = host or "source"
+    return safe_storage_component(label, "source")
+
+
+def organized_output_folder(folder, mode, url, job_id=None, created=None):
+    """Build a dated, readable folder for a download or recording."""
+
+    try:
+        timestamp = float(created) if created is not None else time.time()
+        local_time = time.localtime(timestamp)
+    except (TypeError, ValueError, OverflowError, OSError):
+        local_time = time.localtime()
+    date_folder = time.strftime("%Y-%m-%d", local_time)
+    readable = time.strftime("%H%M%S", local_time) + " - " + source_label(url)
+    if job_id:
+        readable += " [" + safe_storage_component(str(job_id)[:8], "job") + "]"
+    return (Path(folder).expanduser() / storage_category(mode) / date_folder /
+            safe_storage_component(readable, "PixClip-job"))
+
+
+def job_output_directory(job):
+    """Resolve a job's output folder, including the legacy layout."""
+
+    stored = job.get("output_folder")
+    if isinstance(stored, str) and stored.strip():
+        return Path(stored).expanduser()
+    return (Path(job["folder"]).expanduser() /
+            ("PixClip-" + str(job["id"])[:12]))
 
 
 def state_path():
@@ -155,11 +223,15 @@ class JobQueue:
             cookie_path = Path(str(cookies_file)).expanduser()
             if not cookie_path.is_file():
                 raise ValueError("Cookies file was not found: " + str(cookie_path))
-        job = dict(id=uuid.uuid4().hex, url=url, mode=mode, folder=str(Path(folder).expanduser()),
+        job_id = uuid.uuid4().hex
+        created = time.time()
+        folder_path = Path(folder).expanduser()
+        job = dict(id=job_id, url=url, mode=mode, folder=str(folder_path),
+                   output_folder=str(organized_output_folder(folder_path, mode, url, job_id, created)),
                    quality=quality, auto_mp4=auto_mp4, start_at=float(start_at), duration=float(duration),
                    reserve_gb=float(reserve_gb), state="Queued", detail="Waiting", progress=None,
                    cookies_file=str(cookie_path) if cookie_path else None,
-                   created=time.time(), outputs=[], logs=[])
+                   created=created, outputs=[], logs=[])
         self.jobs.append(job)
         self.save()
         return job
@@ -330,7 +402,7 @@ def worker(job):
     import media_toolkit as media
     import tempfile
     media.configure_output_encoding()
-    root = Path(job["folder"]) / ("PixClip-" + job["id"][:12])
+    root = job_output_directory(job)
     reserve = job.get("reserve_gb", 1)
     require_space(root, reserve)
     work = root / ".work"

@@ -12,7 +12,11 @@ from unittest.mock import patch
 from collections import namedtuple
 
 import media_toolkit as media
-from pixclip_jobs import JobQueue, QUALITIES, GIB, load_settings, require_space, quality_arguments, save_settings, stop_tree
+from pixclip_jobs import (
+    JobQueue, QUALITIES, GIB, job_output_directory, load_settings, organized_output_folder,
+    require_space, quality_arguments, safe_storage_component, save_settings, source_label,
+    storage_category, stop_tree,
+)
 
 
 class QueueTests(unittest.TestCase):
@@ -32,10 +36,34 @@ class QueueTests(unittest.TestCase):
         self.queue.save()
         restored = JobQueue(sys.executable, self.path)
         self.assertEqual(restored.limit, 3)
+        self.assertEqual(restored.jobs[0]["output_folder"], job["output_folder"])
         retried = restored.retry(restored.jobs[0])
         self.assertNotEqual(job["id"], retried["id"])
         self.assertEqual(retried["quality"], QUALITIES[2])
         self.assertEqual(retried["start_at"], 0)
+        self.assertNotEqual(job["output_folder"], retried["output_folder"])
+
+    def test_organized_storage_paths(self):
+        fixed_time = time.struct_time((2026, 9, 8, 14, 30, 15, 1, 251, -1))
+        with patch("pixclip_jobs.time.localtime", return_value=fixed_time):
+            live = organized_output_folder(
+                self.temp.name,
+                "Live - Streamlink - Original quality (.ts)",
+                "https://www.tiktok.com/@alcoholicth/live",
+                "abcdef123456",
+            )
+        self.assertEqual(live.relative_to(self.temp.name).parts, (
+            "Live", "2026-09-08", "143015 - alcoholicth [abcdef12]"
+        ))
+        self.assertEqual(storage_category("Playlist - MP3 best quality"), "Playlists")
+        self.assertEqual(storage_category("MP3 - Best quality"), "Audio")
+        self.assertEqual(storage_category("MP4 - Best quality"), "Videos")
+        self.assertEqual(source_label("https://kick.com/punella1/videos/abc"), "punella1")
+        self.assertEqual(safe_storage_component("bad:name?"), "bad_name_")
+
+    def test_legacy_job_folder_is_preserved(self):
+        legacy = {"folder": self.temp.name, "id": "abcdef1234567890"}
+        self.assertEqual(job_output_directory(legacy), Path(self.temp.name) / "PixClip-abcdef123456")
 
     def test_persist_cookies_file_and_retry(self):
         cookies = Path(self.temp.name) / "cookies-export.txt"

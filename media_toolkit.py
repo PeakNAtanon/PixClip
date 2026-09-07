@@ -36,7 +36,9 @@ from queue import Empty, Queue
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from pixclip_ui import WorkflowUI, ClipPreview
-from pixclip_jobs import load_settings, require_space, save_settings, stop_tree
+from pixclip_jobs import (
+    load_settings, require_space, save_settings, stop_tree, organized_output_folder,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -1816,7 +1818,11 @@ def run_cli_download(
     url: str,
     output_directory: Path,
     cookies_file: Optional[str] = None,
+    organize: bool = False,
 ) -> int:
+    output_directory = Path(output_directory).expanduser()
+    if organize:
+        output_directory = organized_output_folder(output_directory, mode, url)
     ytdlp = find_tool("yt-dlp.exe")
     ffmpeg = find_tool("ffmpeg.exe")
     if not ytdlp:
@@ -1993,9 +1999,13 @@ def run_cli_ts_download(
     url: str,
     output_directory: Path,
     cookies_file: Optional[str] = None,
+    organize: bool = False,
 ) -> int:
     """Download a source and create a real MPEG-TS file, matching batch mode 5."""
 
+    output_directory = Path(output_directory).expanduser()
+    if organize:
+        output_directory = organized_output_folder(output_directory, TS_DOWNLOAD_MODE, url)
     ffmpeg = find_tool("ffmpeg.exe")
     if not ffmpeg:
         print("ERROR: ffmpeg was not found beside this file or on PATH.")
@@ -2163,9 +2173,13 @@ def run_cli_live_ts_nvenc(
     output_directory: Path,
     encoder_override: Optional[str] = None,
     cookies_file: Optional[str] = None,
+    organize: bool = False,
 ) -> int:
     """Capture an ongoing Live URL as MPEG-TS with NVIDIA or selected hardware."""
 
+    output_directory = Path(output_directory).expanduser()
+    if organize:
+        output_directory = organized_output_folder(output_directory, AUTO_LIVE_TS_MODE, url)
     ytdlp = find_tool("yt-dlp.exe")
     ffmpeg = find_tool("ffmpeg.exe")
     if not ytdlp:
@@ -2295,12 +2309,14 @@ def run_cli_live_ts_auto(
     url: str,
     output_directory: Path,
     cookies_file: Optional[str] = None,
+    organize: bool = False,
 ) -> int:
     return run_cli_live_ts_nvenc(
         url,
         output_directory,
         encoder_override="auto",
         cookies_file=cookies_file,
+        organize=organize,
     )
 
 
@@ -2324,9 +2340,13 @@ def run_cli_streamlink(
     url: str,
     output_directory: Path,
     cookies_file: Optional[str] = None,
+    organize: bool = False,
 ) -> int:
     """Record a Live URL to MPEG-TS with Streamlink at the best quality."""
 
+    output_directory = Path(output_directory).expanduser()
+    if organize:
+        output_directory = organized_output_folder(output_directory, STREAMLINK_LIVE_MODE, url)
     streamlink = find_streamlink()
     ffmpeg = find_tool("ffmpeg.exe")
     if not streamlink:
@@ -2434,33 +2454,33 @@ def run_cli() -> int:
                 "7": DOWNLOAD_MODES[5],
                 "8": DOWNLOAD_MODES[6],
             }
-            run_cli_download(mode_by_choice[choice], url, output_directory)
+            run_cli_download(mode_by_choice[choice], url, output_directory, organize=True)
             input("Press Enter to continue...")
         elif choice == "5":
             url = input("Paste video or Live URL: ").strip()
             if re.match(r"^https?://", url, re.IGNORECASE):
-                run_cli_ts_download(url, output_directory)
+                run_cli_ts_download(url, output_directory, organize=True)
             else:
                 print("Invalid URL.")
             input("Press Enter to continue...")
         elif choice == "18":
             url = input("Paste Live URL: ").strip()
             if re.match(r"^https?://", url, re.IGNORECASE):
-                run_cli_live_ts_nvenc(url, output_directory)
+                run_cli_live_ts_nvenc(url, output_directory, organize=True)
             else:
                 print("Invalid URL.")
             input("Press Enter to continue...")
         elif choice == "19":
             url = input("Paste Live URL: ").strip()
             if re.match(r"^https?://", url, re.IGNORECASE):
-                run_cli_streamlink(url, output_directory)
+                run_cli_streamlink(url, output_directory, organize=True)
             else:
                 print("Invalid URL.")
             input("Press Enter to continue...")
         elif choice == "20":
             url = input("Paste Live URL: ").strip()
             if re.match(r"^https?://", url, re.IGNORECASE):
-                run_cli_live_ts_auto(url, output_directory)
+                run_cli_live_ts_auto(url, output_directory, organize=True)
             else:
                 print("Invalid URL.")
             input("Press Enter to continue...")
@@ -4253,13 +4273,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return update_ytdlp()
         if args.download_ts:
             url, output_directory = args.download_ts
-            return run_cli_ts_download(url, Path(output_directory).expanduser(), cookies_file=args.cookies_file)
+            return run_cli_ts_download(url, Path(output_directory).expanduser(), cookies_file=args.cookies_file, organize=True)
         if args.download_live_ts_nvenc:
             url, output_directory = args.download_live_ts_nvenc
             return run_cli_live_ts_nvenc(
                 url,
                 Path(output_directory).expanduser(),
                 cookies_file=args.cookies_file,
+                organize=True,
             )
         if args.download_live_ts_auto:
             url, output_directory = args.download_live_ts_auto
@@ -4267,6 +4288,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 url,
                 Path(output_directory).expanduser(),
                 cookies_file=args.cookies_file,
+                organize=True,
             )
         if args.record_live_streamlink:
             url, output_directory = args.record_live_streamlink
@@ -4274,6 +4296,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 url,
                 Path(output_directory).expanduser(),
                 cookies_file=args.cookies_file,
+                organize=True,
             )
         if args.install_tools:
             return install_tools(source_check=args.source_check)

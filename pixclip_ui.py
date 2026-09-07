@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from queue import Queue, Empty
 
-from pixclip_jobs import JobQueue, QUALITIES, TERMINAL, require_space, GIB
+from pixclip_jobs import JobQueue, QUALITIES, TERMINAL, job_output_directory, require_space, GIB
 
 
 class WorkflowUI:
@@ -239,7 +239,8 @@ class WorkflowUI:
                         self.jobs.retry(job)
                 elif name == "folder":
                     from media_toolkit import open_folder
-                    directory = Path(job["folder"]) if job.get("kind") == "local" else Path(job["folder"]) / ("PixClip-" + job["id"][:12])
+                    directory = (Path(job["folder"]) if job.get("kind") == "local"
+                                 else job_output_directory(job))
                     open_folder(directory if directory.exists() else Path(job["folder"]))
                 elif name == "file":
                     outputs = [Path(p) for p in job.get("outputs", []) if Path(p).is_file()]
@@ -491,7 +492,7 @@ class WorkflowUI:
                     ("03  โหลด Live และ TS", "เลือก Live - Auto GPU/CPU เพื่อให้ PixClip ตรวจ NVIDIA/AMD และเลือก NVENC/AMF/VA-API หรือ CPU ให้อัตโนมัติ หรือเลือก Live - Streamlink / Live - NVIDIA NVENC เองก็ได้ หาก TikTok มองไม่เห็น Live ให้เลือกไฟล์ Netscape `cookies.txt` ก่อนเพิ่มงาน โปรแกรมจะแสดงเปอร์เซ็นต์และเวลาโดยประมาณเมื่อคำนวณได้"),
                     ("04  Cookies สำหรับเว็บที่ต้องล็อกอิน", "1) ล็อกอินเว็บในเบราว์เซอร์ แล้ว export Cookies เป็นไฟล์ Netscape `cookies.txt` 2) กด Choose ข้าง Cookies: OFF แล้วเลือกไฟล์ 3) ตรวจชื่อไฟล์ที่แสดง จากนั้นเพิ่มงาน Live หรือดาวน์โหลด 4) กด Clear เมื่อต้องการเลิกใช้ Cookies PixClip จำเฉพาะ path และไม่แสดงค่า Cookies ใน Log ห้ามแชร์ไฟล์นี้"),
                     ("05  TS → MP4 อัตโนมัติ", "เปิดตัวเลือก TS -> MP4 (keep TS) ก่อนเพิ่มงาน โปรแกรมจะแปลงด้วยการ copy stream และเก็บไฟล์ TS ต้นฉบับไว้ หากเปิดไม่ได้ให้ใช้โหมด TS to MP4 - Compatible H.264"),
-                    ("06  Queue / History", "กด Queue / History เพื่อเพิ่มหลาย URL (หนึ่งบรรทัดต่อหนึ่งลิงก์), ตั้งงานพร้อมกัน 1–4 งาน, หยุดรับงานใหม่ด้วย Pause queue, ยกเลิก, ลบรายการออกจากประวัติ (ไม่ลบไฟล์), ลองใหม่, เปิดไฟล์, เปิดโฟลเดอร์ หรือดู Job log ได้"),
+                    ("06  Queue / History", "กด Queue / History เพื่อเพิ่มหลาย URL (หนึ่งบรรทัดต่อหนึ่งลิงก์), ตั้งงานพร้อมกัน 1–4 งาน, หยุดรับงานใหม่ด้วย Pause queue, ยกเลิก, ลบรายการออกจากประวัติ (ไม่ลบไฟล์), ลองใหม่, เปิดไฟล์, เปิดโฟลเดอร์ หรือดู Job log ได้ งานใหม่จะถูกแยกเป็น Videos, Live, Playlists หรือ Audio ตามวันที่และชื่อแหล่งที่มา"),
                     ("07  ตั้งเวลาอัด Live", "เลือกโหมด Live ก่อน เปิด Queue / History แล้วใส่เวลาเครื่องรูปแบบ YYYY-MM-DD HH:MM และจำนวนนาที จากนั้นกด Add timed Live ต้องเปิด PixClip และให้เครื่องตื่นอยู่ตลอดช่วงเวลาอัด"),
                     ("08  ตัดคลิปแบบมีพรีวิว", "กด Cut clip → Choose video รออ่านความยาว แล้วเลื่อนแถบเพื่อดูภาพเฟรม กด Set start here และ Set end here ได้ Fast cut เร็วกว่า ส่วน Compatible MP4 ตัดตรงเวลามากกว่า"),
                     ("09  แปลงและต่อคลิป", "เลือกโหมดในแผง CONVERT แล้วกด 2 CHOOSE VIDEO FILE สำหรับต่อคลิปให้กด Join clips และเลือก Fast เมื่อไฟล์มีรูปแบบตรงกัน หรือ Compatible MP4 เมื่อต้องเข้ารหัสใหม่"),
@@ -512,7 +513,7 @@ class WorkflowUI:
                     ("03  Record Live and TS", "Choose Live - Auto GPU/CPU to detect NVIDIA or AMD and select NVENC, AMF, VA-API, or CPU automatically. You can also choose Live - Streamlink or Live - NVIDIA NVENC manually. If TikTok hides a Live stream, choose a Netscape `cookies.txt` file before adding the job. Progress and an estimated time appear when available."),
                     ("04  Cookies for login required sites", "1) Sign in to the site in your browser and export Cookies as a Netscape `cookies.txt` file. 2) Click Choose beside Cookies: OFF and select the file. 3) Confirm the file name, then add the Live or download job. 4) Click Clear to stop using Cookies. PixClip remembers only the path and never displays cookie values in the log. Never share this file."),
                     ("05  Automatic TS to MP4", "Enable TS -> MP4 (keep TS) before adding a job. PixClip remuxes with stream copy and keeps the original TS file. If the MP4 container is not compatible, use TS to MP4 - Compatible H.264."),
-                    ("06  Queue / History", "Use Queue / History to add multiple URLs, set 1-4 parallel jobs, pause new jobs, cancel, delete history entries without deleting media files, retry, open files or folders, and view job logs."),
+                    ("06  Queue / History", "Use Queue / History to add multiple URLs, set 1-4 parallel jobs, pause new jobs, cancel, delete history entries without deleting media files, retry, open files or folders, and view job logs. New downloads are grouped under Videos, Live, Playlists, or Audio by date and source."),
                     ("07  Schedule a Live recording", "Choose a Live mode, open Queue / History, enter local time as YYYY-MM-DD HH:MM and the number of minutes, then press Add timed Live. Keep PixClip open and keep the computer awake."),
                     ("08  Cut with preview", "Click Cut clip -> Choose video, wait for the duration, then move the slider to preview frames. Use Set start here and Set end here. Fast cut is quicker; Compatible MP4 is more precise."),
                     ("09  Convert and join", "Choose a mode in CONVERT and press 2 CHOOSE VIDEO FILE. To join clips, press Join clips and use Fast when stream settings match, or Compatible MP4 to re-encode."),

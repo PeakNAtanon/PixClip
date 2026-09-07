@@ -82,6 +82,19 @@ python3 media_toolkit.py --record-live-streamlink "LIVE_URL" "$HOME/Videos" --co
 Linux desktop GUI requires a working desktop/WSLg session and Tkinter. Headless Linux should use `--cli`.
 The GUI's `Choose` button beside `Cookies: OFF` remembers only the file path. Never commit or share the cookies file.
 
+## Organized output folders
+
+New queued downloads and direct CLI downloads are grouped under the selected folder by type and date:
+
+```text
+Videos/ or Live/ or Playlists/ or Audio/
+  YYYY-MM-DD/
+    HHMMSS - source [job-id]/   # Queue / History
+    HHMMSS - source/            # direct CLI
+```
+
+`Open folder` opens the job's exact folder. Existing history without the new folder field continues to use the legacy `PixClip-<job-id>` layout. Convert, cut, and join outputs remain at the path you choose.
+
 ## Linux distribution support
 
 PixClip is Python/Tkinter based and is designed to run on most mainstream Linux distributions. The easiest path is an apt-based distribution:

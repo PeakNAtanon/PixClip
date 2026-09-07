@@ -99,7 +99,15 @@ PixClip --record-live-streamlink "LIVE_URL" "$HOME/Videos" --cookies-file "$HOME
 - Pause queue หยุดเริ่มงานใหม่ แต่ไม่หยุดงานที่กำลังทำ
 - เลือกงานแล้ว Cancel, Delete, Retry, Files, Open folder หรือ Job log; Delete ลบเฉพาะรายการจาก Queue/History ไม่ลบไฟล์สื่อ
 - History only แสดงงานที่จบแล้ว รวมงานแปลง ตัด และต่อคลิป
-- งานดาวน์โหลดแต่ละงานอยู่ใน `PixClip-<job-id>` ภายใต้โฟลเดอร์ที่เลือก ป้องกันไฟล์ชนกัน
+- งานดาวน์โหลดใหม่จะจัดเป็นโครงสร้างนี้ภายใต้โฟลเดอร์ที่เลือก เพื่อค้นหาไฟล์ง่ายและไม่ปนกัน:
+
+  ```text
+  Videos/ หรือ Live/ หรือ Playlists/ หรือ Audio/
+    YYYY-MM-DD/
+      HHMMSS - ชื่อแหล่งที่มา [รหัสงาน]/
+  ```
+
+  โหมด CLI ใช้โครงสร้างเดียวกันแต่ไม่มีรหัสงาน ส่วนไฟล์แปลง/ตัด/ต่อยังบันทึกตามตำแหน่งที่เลือกเอง ประวัติเก่าที่สร้างก่อนระบบนี้ยังเปิดจาก `PixClip-<job-id>` เดิมได้
 - Retry สร้างงานใหม่ ไม่เขียนทับโฟลเดอร์ดาวน์โหลดเดิม ส่วนการลองงานตัด/แปลงซ้ำจะถามก่อนแทนที่ไฟล์ปลายทาง
 - ประวัติ Windows: `%LOCALAPPDATA%/PixClip/jobs.json`
 - ประวัติ Linux: `${XDG_STATE_HOME:-~/.local/state}/PixClip/jobs.json`
