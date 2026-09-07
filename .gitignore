@@ -1,0 +1,23 @@
+# Python cache and local runtime files
+__pycache__/
+*.py[cod]
+*.pyo
+*.log
+
+# Downloaded media and temporary outputs
+*.ts
+*.mp4
+*.mp3
+*.mkv
+*.webm
+*.part
+*.tmp
+
+# Third-party executables downloaded by Install-Media-Tools.py
+*.exe
+
+# Local distribution files and machine-specific shortcuts
+PixClip*.zip
+*.lnk
+.DS_Store
+Thumbs.db
