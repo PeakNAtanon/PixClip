@@ -768,11 +768,38 @@ def fast_join_compatibility(input_files: Sequence[Path]) -> Optional[bool]:
     return all(signature == first for signature in signatures[1:])
 
 
-def build_download_arguments(mode: str, url: str, output_dir: Path) -> List[str]:
+def resolve_cookies_file(cookies_file: Optional[str]) -> Optional[Path]:
+    """Validate an optional Netscape cookies.txt path without reading its contents."""
+
+    if cookies_file is None or not str(cookies_file).strip():
+        return None
+    path = Path(str(cookies_file)).expanduser()
+    if not path.is_file():
+        raise ValueError("Cookies file was not found: " + str(path))
+    return path
+
+
+def ytdlp_cookie_arguments(cookies_file: Optional[str]) -> List[str]:
+    path = resolve_cookies_file(cookies_file)
+    return ["--cookies", str(path)] if path else []
+
+
+def streamlink_cookie_arguments(cookies_file: Optional[str]) -> List[str]:
+    path = resolve_cookies_file(cookies_file)
+    return ["--http-cookies-file", str(path)] if path else []
+
+
+def build_download_arguments(
+    mode: str,
+    url: str,
+    output_dir: Path,
+    cookies_file: Optional[str] = None,
+) -> List[str]:
     """Build yt-dlp arguments equivalent to the original GUI/batch modes."""
 
     common = [
         "--ignore-config",
+        *ytdlp_cookie_arguments(cookies_file),
         "--newline",
         "--continue",
         "--no-overwrites",
@@ -1289,6 +1316,7 @@ def build_streamlink_arguments(
     url: str,
     output_file: Path,
     ffmpeg_path: Optional[str] = None,
+    cookies_file: Optional[str] = None,
 ) -> List[str]:
     """Build a resilient Streamlink command that records the best Live stream."""
 
@@ -1306,6 +1334,7 @@ def build_streamlink_arguments(
         "--stream-segment-attempts",
         "5",
     ]
+    arguments.extend(streamlink_cookie_arguments(cookies_file))
     if ffmpeg_path:
         arguments.extend(
             [
@@ -1782,7 +1811,12 @@ def print_result(exit_code: int, output_directory: Optional[Path] = None) -> Non
     print("=" * 60)
 
 
-def run_cli_download(mode: str, url: str, output_directory: Path) -> int:
+def run_cli_download(
+    mode: str,
+    url: str,
+    output_directory: Path,
+    cookies_file: Optional[str] = None,
+) -> int:
     ytdlp = find_tool("yt-dlp.exe")
     ffmpeg = find_tool("ffmpeg.exe")
     if not ytdlp:
@@ -1795,7 +1829,7 @@ def run_cli_download(mode: str, url: str, output_directory: Path) -> int:
     (output_directory / "_archives").mkdir(parents=True, exist_ok=True)
     code, _ = run_command(
         ytdlp,
-        build_download_arguments(mode, url, output_directory),
+        build_download_arguments(mode, url, output_directory, cookies_file),
         BASE_DIR,
     )
     print_result(code, output_directory)
@@ -1955,7 +1989,11 @@ def run_kick_vod_ts_download(video_id: str, output_directory: Path, ffmpeg: str)
             print(f"Partial Kick download kept here: {temporary_directory}", flush=True)
 
 
-def run_cli_ts_download(url: str, output_directory: Path) -> int:
+def run_cli_ts_download(
+    url: str,
+    output_directory: Path,
+    cookies_file: Optional[str] = None,
+) -> int:
     """Download a source and create a real MPEG-TS file, matching batch mode 5."""
 
     ffmpeg = find_tool("ffmpeg.exe")
@@ -1972,6 +2010,8 @@ def run_cli_ts_download(url: str, output_directory: Path) -> int:
         print("ERROR: yt-dlp and ffmpeg are required.")
         return 1
 
+    cookie_args = ytdlp_cookie_arguments(cookies_file)
+
     output_directory.mkdir(parents=True, exist_ok=True)
     temporary_directory = Path(tempfile.mkdtemp(prefix="ytdlp_ts_"))
     keep_temporary = True
@@ -1981,6 +2021,7 @@ def run_cli_ts_download(url: str, output_directory: Path) -> int:
             ytdlp,
             [
                 "--ignore-config",
+                *cookie_args,
                 "--quiet",
                 "--no-warnings",
                 "--no-playlist",
@@ -2009,6 +2050,7 @@ def run_cli_ts_download(url: str, output_directory: Path) -> int:
             ytdlp,
             [
                 "--ignore-config",
+                *cookie_args,
                 "--newline",
                 "--continue",
                 "--no-overwrites",
@@ -2120,6 +2162,7 @@ def run_cli_live_ts_nvenc(
     url: str,
     output_directory: Path,
     encoder_override: Optional[str] = None,
+    cookies_file: Optional[str] = None,
 ) -> int:
     """Capture an ongoing Live URL as MPEG-TS with NVIDIA or selected hardware."""
 
@@ -2131,6 +2174,8 @@ def run_cli_live_ts_nvenc(
     if not ffmpeg:
         print("ERROR: ffmpeg was not found beside this file or on PATH.")
         return 1
+
+    cookie_args = ytdlp_cookie_arguments(cookies_file)
 
     if encoder_override == "auto":
         encoder_info = select_live_encoder(ffmpeg)
@@ -2154,6 +2199,7 @@ def run_cli_live_ts_nvenc(
         ytdlp,
         [
             "--ignore-config",
+            *cookie_args,
             "--quiet",
             "--no-warnings",
             "--no-playlist",
@@ -2182,6 +2228,7 @@ def run_cli_live_ts_nvenc(
         ytdlp,
         [
             "--ignore-config",
+            *cookie_args,
             "--quiet",
             "--no-warnings",
             "--no-playlist",
@@ -2244,8 +2291,17 @@ def run_cli_live_ts_nvenc(
     return code
 
 
-def run_cli_live_ts_auto(url: str, output_directory: Path) -> int:
-    return run_cli_live_ts_nvenc(url, output_directory, encoder_override="auto")
+def run_cli_live_ts_auto(
+    url: str,
+    output_directory: Path,
+    cookies_file: Optional[str] = None,
+) -> int:
+    return run_cli_live_ts_nvenc(
+        url,
+        output_directory,
+        encoder_override="auto",
+        cookies_file=cookies_file,
+    )
 
 
 def streamlink_recording_filename(url: str) -> str:
@@ -2264,7 +2320,11 @@ def streamlink_recording_filename(url: str) -> str:
     return safe_filename_component(f"{label} [{timestamp}]", "live_stream") + ".ts"
 
 
-def run_cli_streamlink(url: str, output_directory: Path) -> int:
+def run_cli_streamlink(
+    url: str,
+    output_directory: Path,
+    cookies_file: Optional[str] = None,
+) -> int:
     """Record a Live URL to MPEG-TS with Streamlink at the best quality."""
 
     streamlink = find_streamlink()
@@ -2288,8 +2348,8 @@ def run_cli_streamlink(url: str, output_directory: Path) -> int:
 
     print("Starting Live recording with Streamlink (best quality, original stream).", flush=True)
     print("The recording has no fixed end time. Use Cancel task or Ctrl+C to stop and finalize the .ts file.", flush=True)
-    arguments = build_streamlink_arguments(url, output, ffmpeg)
-    display_arguments = build_streamlink_arguments("<Live URL>", output, "<ffmpeg>")
+    arguments = build_streamlink_arguments(url, output, ffmpeg, cookies_file)
+    display_arguments = build_streamlink_arguments("<Live URL>", output, "<ffmpeg>", cookies_file)
     code, _ = run_command(
         streamlink,
         arguments,
@@ -2722,6 +2782,12 @@ class MediaToolkitApp(WorkflowUI):
             candidate_folder = Path(remembered_folder).expanduser()
             if candidate_folder.is_dir():
                 self.output_directory = candidate_folder
+        self.cookies_file: Optional[Path] = None
+        remembered_cookies = self.settings.get("cookies_file")
+        if isinstance(remembered_cookies, str) and remembered_cookies.strip():
+            candidate_cookies = Path(remembered_cookies).expanduser()
+            if candidate_cookies.is_file():
+                self.cookies_file = candidate_cookies
         self.current_runner: Optional[ProcessRunner] = None
         self.current_temporary_files: List[Path] = []
         self.current_success_message = "Done - your file is ready."
@@ -2836,6 +2902,14 @@ class MediaToolkitApp(WorkflowUI):
 
     def pixel_icon(self, name: str):
         patterns = {
+            "delete": ["00111000","01111100","00000000","01000100","01010100","01010100","01000100","01111100"],
+            "retry": ["00111100","01000010","10000001","10000000","10111000","11000010","10111100","00000000"],
+            "file": ["01111000","01001100","01000110","01000010","01011010","01011010","01000010","01111110"],
+            "log": ["11111110","10000010","10111010","10000010","10111010","10000010","10100010","11111110"],
+            "clear": ["00000010","00000100","00001000","00010000","00111000","01111100","11111000","10101000"],
+            "pause": ["00000000","01100110","01100110","01100110","01100110","01100110","01100110","00000000"],
+            "play": ["00100000","00110000","00111000","00111100","00111100","00111000","00110000","00100000"],
+            "schedule": ["00111100","01000010","10010001","10010001","10011101","10000001","01000010","00111100"],
             "download": ["00011000","00011000","00011000","01111110","00111100","00011000","10000001","11111111"],
             "cut": ["11000011","11000110","00101100","00011000","00101100","11000110","11000011","00000000"],
             "convert": ["00000100","01111110","10000100","10000000","00000001","00100001","01111110","00100000"],
@@ -2858,9 +2932,9 @@ class MediaToolkitApp(WorkflowUI):
             self.pixel_icons[name] = icon
         return self.pixel_icons[name]
 
-    def _button(self, parent, text: str, command, *, bg: Optional[str] = None, width: Optional[int] = None):
+    def _button(self, parent, text: str, command, *, bg: Optional[str] = None, width: Optional[int] = None, icon: Optional[str] = None):
         label = text.lower()
-        icon_name = next((name for word, name in (
+        icon_name = icon or next((name for word, name in (
             ("cancel", "stop"), ("cut", "cut"), ("join", "join"),
             ("folder", "folder"), ("download", "download"), ("video file", "convert"),
             ("update", "convert"),
@@ -3306,6 +3380,8 @@ class MediaToolkitApp(WorkflowUI):
             self.clip_button,
             self.install_button,
             self.update_button,
+            self.choose_cookies_button,
+            self.clear_cookies_button,
         ):
             button.configure(state=state)
         self.cancel_button.configure(state="normal" if busy else "disabled")
@@ -3452,6 +3528,45 @@ class MediaToolkitApp(WorkflowUI):
                 save_settings(self.settings)
             except OSError as exc:
                 self.append_log("WARNING: Could not remember output folder: " + str(exc))
+
+    def choose_cookies(self) -> None:
+        from tkinter import filedialog
+
+        selected = filedialog.askopenfilename(
+            parent=self.root,
+            title="Choose a Netscape cookies.txt file",
+            filetypes=[
+                ("Cookies files", "*.txt *.cookies"),
+                ("All files", "*.*"),
+            ],
+        )
+        if not selected:
+            return
+        try:
+            path = Path(selected).expanduser()
+            if not path.is_file():
+                raise ValueError("Cookies file was not found: " + str(path))
+            self.cookies_file = path
+            self.cookies_var.set(str(path))
+            self.cookies_display_var.set("Cookies: " + path.name)
+            self.settings["cookies_file"] = str(path)
+            save_settings(self.settings)
+            self.append_log("Cookies file selected. Cookie values are never displayed in the log.")
+        except (OSError, ValueError) as exc:
+            self.append_log("WARNING: Could not use Cookies file: " + str(exc))
+            from tkinter import messagebox
+            messagebox.showerror("Cookies", str(exc), parent=self.root)
+
+    def clear_cookies(self) -> None:
+        self.cookies_file = None
+        self.cookies_var.set("")
+        self.cookies_display_var.set("Cookies: OFF")
+        self.settings.pop("cookies_file", None)
+        try:
+            save_settings(self.settings)
+            self.append_log("Cookies file cleared. PixClip will use public access only.")
+        except OSError as exc:
+            self.append_log("WARNING: Could not save Cookies setting: " + str(exc))
 
     def open_output_folder(self) -> None:
         try:
@@ -4090,6 +4205,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     parser.add_argument("--update-ytdlp", action="store_true", help="update and verify yt-dlp")
     parser.add_argument(
+        "--cookies-file",
+        metavar="PATH",
+        help="optional Netscape cookies.txt file for yt-dlp and Streamlink",
+    )
+    parser.add_argument(
         "--download-ts",
         nargs=2,
         metavar=("URL", "OUTPUT_DIR"),
@@ -4124,16 +4244,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return update_ytdlp()
         if args.download_ts:
             url, output_directory = args.download_ts
-            return run_cli_ts_download(url, Path(output_directory).expanduser())
+            return run_cli_ts_download(url, Path(output_directory).expanduser(), cookies_file=args.cookies_file)
         if args.download_live_ts_nvenc:
             url, output_directory = args.download_live_ts_nvenc
-            return run_cli_live_ts_nvenc(url, Path(output_directory).expanduser())
+            return run_cli_live_ts_nvenc(
+                url,
+                Path(output_directory).expanduser(),
+                cookies_file=args.cookies_file,
+            )
         if args.download_live_ts_auto:
             url, output_directory = args.download_live_ts_auto
-            return run_cli_live_ts_auto(url, Path(output_directory).expanduser())
+            return run_cli_live_ts_auto(
+                url,
+                Path(output_directory).expanduser(),
+                cookies_file=args.cookies_file,
+            )
         if args.record_live_streamlink:
             url, output_directory = args.record_live_streamlink
-            return run_cli_streamlink(url, Path(output_directory).expanduser())
+            return run_cli_streamlink(
+                url,
+                Path(output_directory).expanduser(),
+                cookies_file=args.cookies_file,
+            )
         if args.install_tools:
             return install_tools(source_check=args.source_check)
         if args.cli:

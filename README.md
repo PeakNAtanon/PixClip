@@ -19,6 +19,7 @@ PixClip is a Python-first desktop media toolkit with a terminal-inspired pixel-a
 - Download video, playlist, MP3, MPEG-TS (`.ts`), and Live streams.
 - Kick VOD playback fallback for supported public VOD URLs.
 - Record Live with Streamlink or HLS and reconnect after temporary failures.
+- Use an optional Netscape `cookies.txt` file for sites that require a logged-in session.
 - Detect NVIDIA/AMD hardware and choose NVENC, AMF, VA-API, or CPU encoding automatically.
 - Convert TS to MP4, transcode H.265/HEVC to H.264/AAC, cut clips, and join clips.
 - Queue/history with cancel, delete-without-file-removal, retry, scheduled Live recordings, disk-space checks, progress, and ETA.
@@ -61,9 +62,13 @@ python3 media_toolkit.py --cli
 
 # Environment report
 python3 media_toolkit.py --compatibility-test
+
+# Live recording with an exported Netscape cookies.txt file
+python3 media_toolkit.py --record-live-streamlink "LIVE_URL" "$HOME/Videos" --cookies-file "$HOME/private/cookies.txt"
 ```
 
 Linux desktop GUI requires a working desktop/WSLg session and Tkinter. Headless Linux should use `--cli`.
+The GUI's `Choose` button beside `Cookies: OFF` remembers only the file path. Never commit or share the cookies file.
 
 ## Linux distribution support
 

@@ -141,7 +141,7 @@ class JobQueue:
             self.warning = "History was not saved: " + str(exc)
 
     def add(self, url, mode, folder, quality=QUALITIES[0], auto_mp4=False,
-            start_at=0, duration=0, reserve_gb=1):
+            start_at=0, duration=0, reserve_gb=1, cookies_file=None):
         from urllib.parse import urlparse
         parsed = urlparse(url)
         if parsed.scheme not in ("http", "https") or not parsed.netloc:
@@ -150,9 +150,15 @@ class JobQueue:
             raise ValueError("Unknown quality")
         if not all(math.isfinite(float(v)) and float(v) >= 0 for v in (start_at, duration, reserve_gb)) or float(reserve_gb) < .25:
             raise ValueError("Invalid schedule or disk reserve")
+        cookie_path = None
+        if cookies_file is not None and str(cookies_file).strip():
+            cookie_path = Path(str(cookies_file)).expanduser()
+            if not cookie_path.is_file():
+                raise ValueError("Cookies file was not found: " + str(cookie_path))
         job = dict(id=uuid.uuid4().hex, url=url, mode=mode, folder=str(Path(folder).expanduser()),
                    quality=quality, auto_mp4=auto_mp4, start_at=float(start_at), duration=float(duration),
                    reserve_gb=float(reserve_gb), state="Queued", detail="Waiting", progress=None,
+                   cookies_file=str(cookie_path) if cookie_path else None,
                    created=time.time(), outputs=[], logs=[])
         self.jobs.append(job)
         self.save()
@@ -163,7 +169,7 @@ class JobQueue:
             raise ValueError("Cancel or finish this job before retrying.")
         return self.add(job["url"], job["mode"], job["folder"], job.get("quality", QUALITIES[0]),
                         job.get("auto_mp4", False), duration=job.get("duration", 0),
-                        reserve_gb=job.get("reserve_gb", 1))
+                        reserve_gb=job.get("reserve_gb", 1), cookies_file=job.get("cookies_file"))
 
     def record_local(self, executable, arguments, folder, label, temporary_files=()):
         snapshots = {str(p): Path(p).read_text(encoding="utf-8") for p in temporary_files if Path(p).is_file()}
@@ -331,6 +337,14 @@ def worker(job):
     work.mkdir(exist_ok=True)
     tempfile.tempdir = str(work)
     quality = job.get("quality", QUALITIES[0])
+    cookies_file = job.get("cookies_file")
+    if cookies_file is not None and str(cookies_file).strip():
+        cookies_path = Path(str(cookies_file)).expanduser()
+        if not cookies_path.is_file():
+            raise ValueError("Cookies file was not found: " + str(cookies_path))
+        cookies_file = str(cookies_path)
+    else:
+        cookies_file = None
     live = job["mode"] in (media.STREAMLINK_LIVE_MODE, media.LIVE_TS_NVENC_MODE, media.AUTO_LIVE_TS_MODE)
     if live and quality == QUALITIES[-1]:
         raise ValueError("Audio-only is a download mode; choose a video quality for Live recording.")
@@ -441,6 +455,7 @@ def worker(job):
         return payload
     media.request_kick_vod_playback = kick_with_quality
     mode = job["mode"]
+    cookie_kwargs = {"cookies_file": cookies_file} if cookies_file else {}
     if quality == QUALITIES[-1]:
         mode = "Playlist - MP3 best quality" if mode.startswith("Playlist") else "MP3 - Best quality"
     if live:
@@ -454,16 +469,16 @@ def worker(job):
         for attempt in range(6):
             if deadline and time.time() >= deadline:
                 break
-            code = run(job["url"], root)
+            code = run(job["url"], root, **cookie_kwargs)
             if timed_out or (code == 0 and not deadline):
                 break
             if attempt < 5:
                 print(f"PIXCLIP_PHASE=Reconnecting ({attempt+1}/5); existing segments kept", flush=True)
                 time.sleep(min(5, max(0, deadline-time.time())) if deadline else 5)
     elif mode == media.TS_DOWNLOAD_MODE:
-        code = media.run_cli_ts_download(job["url"], root)
+        code = media.run_cli_ts_download(job["url"], root, **cookie_kwargs)
     else:
-        code = media.run_cli_download(mode, job["url"], root)
+        code = media.run_cli_download(mode, job["url"], root, **cookie_kwargs)
     outputs = [p for p in root.rglob("*") if p.is_file() and ".work" not in p.parts
                and p.suffix.lower() in {".mp4", ".ts", ".mkv", ".mp3", ".webm", ".m4a"} and p.stat().st_size]
     for output in outputs:

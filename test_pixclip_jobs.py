@@ -37,6 +37,16 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(retried["quality"], QUALITIES[2])
         self.assertEqual(retried["start_at"], 0)
 
+    def test_persist_cookies_file_and_retry(self):
+        cookies = Path(self.temp.name) / "cookies-export.txt"
+        cookies.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+        job = self.add(cookies_file=cookies)
+        job["state"] = "Failed"
+        self.queue.save()
+        restored = JobQueue(sys.executable, self.path)
+        retried = restored.retry(restored.jobs[0])
+        self.assertEqual(retried["cookies_file"], str(cookies))
+
     def test_remember_output_folder_settings(self):
         settings = Path(self.temp.name) / "settings.json"
         save_settings({"output_directory": self.temp.name}, settings)
@@ -187,6 +197,37 @@ class QueueTests(unittest.TestCase):
                 pass
             process.wait()
             process.stdout.close()
+
+
+class CookieArgumentTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.cookies = Path(self.temp.name) / "cookies.txt"
+        self.cookies.write_text("# Netscape HTTP Cookie File\nsecret-cookie-value\n", encoding="utf-8")
+
+    def test_ytdlp_and_streamlink_receive_cookie_file_path(self):
+        ytdlp_args = media.build_download_arguments(
+            "MP4 - Best quality",
+            "https://example.com/video",
+            Path(self.temp.name),
+            self.cookies,
+        )
+        streamlink_args = media.build_streamlink_arguments(
+            "https://example.com/live",
+            Path(self.temp.name) / "live.ts",
+            "ffmpeg",
+            self.cookies,
+        )
+        self.assertEqual(ytdlp_args[ytdlp_args.index("--cookies") + 1], str(self.cookies))
+        self.assertEqual(streamlink_args[streamlink_args.index("--http-cookies-file") + 1], str(self.cookies))
+        self.assertNotIn("secret-cookie-value", " ".join(ytdlp_args + streamlink_args))
+
+    def test_missing_cookie_file_is_rejected(self):
+        with self.assertRaises(ValueError):
+            media.ytdlp_cookie_arguments(Path(self.temp.name) / "missing.txt")
+        with self.assertRaises(ValueError):
+            media.streamlink_cookie_arguments(Path(self.temp.name) / "missing.txt")
 
 
 class InstallerTests(unittest.TestCase):

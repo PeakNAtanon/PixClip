@@ -75,6 +75,23 @@ yt-dlp, FFmpeg, ffprobe, Streamlink และไลบรารี/เครื�
 โหมด Live ไม่รองรับตัวเลือก Audio only ส่วนโหมด MP3 จะเก็บเฉพาะเสียงเสมอ
 Kick VOD ที่มีเสียงแยกใน HLS อาจต้องใช้ Best available เพื่อรักษาเสียงครบ
 
+## Cookies สำหรับ Live ที่ต้องล็อกอิน
+
+หาก TikTok หรือเว็บไซต์ต้นทางมองไม่เห็น Live ทั้งที่เปิดดูได้ในเบราว์เซอร์ ให้ export เซสชันเป็นไฟล์ Netscape `cookies.txt` จากเบราว์เซอร์ที่ล็อกอินอยู่ แล้วทำตามนี้:
+
+1. กด `Choose` ข้าง `Cookies: OFF` บนหน้าหลัก แล้วเลือกไฟล์ `cookies.txt`
+2. ตรวจให้สถานะเปลี่ยนเป็นชื่อไฟล์ Cookies แล้วเลือกโหมด Live
+3. กด `DOWNLOAD` หรือเพิ่มงานใน `Queue / History`
+4. กด `Clear` เมื่อต้องการกลับไปใช้การเข้าถึงแบบสาธารณะ
+
+PixClip จะจำเฉพาะตำแหน่งไฟล์และจะไม่พิมพ์ค่า Cookies ใน Log แต่ไฟล์ต้นฉบับยังเป็นข้อมูลล็อกอิน ห้ามส่งต่อหรือ commit เข้า Git
+
+สำหรับ CLI ใช้ `--cookies-file` ได้ เช่น:
+
+```bash
+PixClip --record-live-streamlink "LIVE_URL" "$HOME/Videos" --cookies-file "$HOME/private/cookies.txt"
+```
+
 ## Queue / History
 
 - วางหลาย URL โดยหนึ่งลิงก์ต่อหนึ่งบรรทัด แล้วกด Add downloads now

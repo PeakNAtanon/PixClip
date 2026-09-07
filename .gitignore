@@ -13,6 +13,11 @@ __pycache__/
 *.part
 *.tmp
 
+# Browser authentication exports (never commit these)
+cookies.txt
+cookies*.txt
+*.cookies
+
 # Third-party executables downloaded by Install-Media-Tools.py
 *.exe
 

@@ -41,6 +41,25 @@ class WorkflowUI:
         tk.Checkbutton(options, text="TS -> MP4 (keep TS)", variable=self.auto_mp4_var,
             bg=self.COLORS["background"], fg=self.COLORS["text"], selectcolor=self.COLORS["input"],
             activebackground=self.COLORS["background"], activeforeground=self.COLORS["text"]).pack(side="left", padx=8)
+        self.cookies_var = tk.StringVar(value=str(self.cookies_file) if self.cookies_file else "")
+        self.cookies_display_var = tk.StringVar(
+            value=("Cookies: " + self.cookies_file.name) if self.cookies_file else "Cookies: OFF"
+        )
+        tk.Label(
+            options,
+            textvariable=self.cookies_display_var,
+            width=18,
+            anchor="w",
+            bg=self.COLORS["background"],
+            fg=self.COLORS["muted"],
+            font=(self.mono_font, 8),
+        ).pack(side="left", padx=(2, 4))
+        self.choose_cookies_button = self._button(options, "Choose", self.choose_cookies)
+        self.choose_cookies_button.configure(image="", font=(self.mono_font, 8), padx=4, pady=2, borderwidth=1)
+        self.choose_cookies_button.pack(side="left", padx=(0, 3))
+        self.clear_cookies_button = self._button(options, "Clear", self.clear_cookies)
+        self.clear_cookies_button.configure(image="", font=(self.mono_font, 8), padx=4, pady=2, borderwidth=1)
+        self.clear_cookies_button.pack(side="left")
         self._button(options, "Queue / History", self.show_queue).pack(side="right")
         self.workflow_label = tk.Label(content, text="Queue ready | Disk check enabled", anchor="w",
             bg=self.COLORS["background"], fg=self.COLORS["muted"], font=(self.mono_font, 9))
@@ -55,7 +74,8 @@ class WorkflowUI:
             url = self.url_var.get().strip()
             require_space(self.output_directory, self.reserve_var.get())
             self.jobs.add(url, self.download_mode_var.get(), self.output_directory,
-                self.quality_var.get(), self.auto_mp4_var.get(), reserve_gb=self.reserve_var.get())
+                self.quality_var.get(), self.auto_mp4_var.get(), reserve_gb=self.reserve_var.get(),
+                cookies_file=self.cookies_file)
             self.show_queue()
         except (OSError, ValueError, self.tk.TclError) as exc:
             messagebox.showerror("Add download", str(exc), parent=self.root)
@@ -160,8 +180,10 @@ class WorkflowUI:
         def pause():
             self.jobs.paused = not self.jobs.paused
             self.jobs.save()
-            pause_button.configure(text="[ Resume queue ]" if self.jobs.paused else "[ Pause queue ]")
-        pause_button = self._button(top, "Resume queue" if self.jobs.paused else "Pause queue", pause)
+            pause_button.configure(text="[ Resume queue ]" if self.jobs.paused else "[ Pause queue ]",
+                                   image=self.pixel_icon("play" if self.jobs.paused else "pause"))
+        pause_button = self._button(top, "Resume queue" if self.jobs.paused else "Pause queue", pause,
+                                   icon="play" if self.jobs.paused else "pause")
         pause_button.pack(side="left", padx=8)
         self.history_only = tk.BooleanVar(value=False)
         tk.Checkbutton(top, text="History only", variable=self.history_only, command=self.refresh_queue,
@@ -227,14 +249,15 @@ class WorkflowUI:
             except (OSError, ValueError) as exc:
                 messagebox.showerror("Queue", str(exc), parent=window)
         for text, name in (("Cancel", "cancel"), ("Delete", "delete"), ("Retry", "retry"), ("Files", "file"), ("Open folder", "folder"), ("Job log", "log")):
-            self._button(controls, text, lambda n=name: action(n)).pack(side="left", padx=(0, 6))
+            self._button(controls, text, lambda n=name: action(n),
+                         icon="stop" if name == "cancel" else name).pack(side="left", padx=(0, 6))
         def clear_all():
             if messagebox.askyesno("Clear all",
                 "Clear all pending jobs (including scheduled Live) and history?\n"
                 "Running jobs and media files will be kept.", parent=window):
                 self.jobs.clear_all()
                 self.refresh_queue()
-        self._button(controls, "Clear all", clear_all).pack(side="left", padx=(0, 6))
+        self._button(controls, "Clear all", clear_all, icon="clear").pack(side="left", padx=(0, 6))
         form = tk.Frame(window, bg=self.COLORS["background"])
         form.pack(fill="x", padx=16, pady=(0, 12))
         label(form, "Add URLs (one per line). Uses the mode, quality and output folder on the main window.").pack(fill="x")
@@ -275,7 +298,8 @@ class WorkflowUI:
                 require_space(self.output_directory, self.reserve_var.get())
                 for url in links:
                     self.jobs.add(url, self.download_mode_var.get(), self.output_directory, self.quality_var.get(),
-                        self.auto_mp4_var.get(), start_at=start, duration=duration, reserve_gb=self.reserve_var.get())
+                        self.auto_mp4_var.get(), start_at=start, duration=duration, reserve_gb=self.reserve_var.get(),
+                        cookies_file=self.cookies_file)
                 urls.delete("1.0", "end")
                 self.refresh_queue()
             except (ValueError, OSError, tk.TclError) as exc:
@@ -283,7 +307,7 @@ class WorkflowUI:
         buttons = tk.Frame(form, bg=self.COLORS["background"])
         buttons.pack(fill="x")
         self._button(buttons, "Add downloads now", lambda: add(False), bg=self.COLORS["primary"]).pack(side="left")
-        self._button(buttons, "Add timed Live", lambda: add(True)).pack(side="left", padx=8)
+        self._button(buttons, "Add timed Live", lambda: add(True), icon="schedule").pack(side="left", padx=8)
         self.refresh_queue()
 
     def retry_local(self, job):
@@ -455,9 +479,9 @@ class WorkflowUI:
                 "close": "ปิดหน้าต่าง",
                 "full": "เปิดคู่มือเต็ม",
                 "sections": (
-                    ("01  เริ่มใช้งาน", "กด Install tools เพื่อติดตั้ง yt-dlp, FFmpeg และ Streamlink และบน Linux จะติดตั้ง `python3-tk` หากยังไม่มี จากนั้นวางลิงก์วิดีโอหรือ Live ลงในช่อง URL และเลือกโฟลเดอร์ปลายทาง PixClip จะจำโฟลเดอร์ล่าสุดไว้ให้ในครั้งถัดไป"),
+                    ("01  เริ่มใช้งาน", "กด Install tools เพื่อติดตั้ง yt-dlp, FFmpeg และ Streamlink และบน Linux จะติดตั้ง `python3-tk` หากยังไม่มี จากนั้นวางลิงก์วิดีโอหรือ Live ลงในช่อง URL และเลือกโฟลเดอร์ปลายทาง PixClip จะจำโฟลเดอร์ล่าสุดไว้ให้ในครั้งถัดไป หากเว็บต้องล็อกอิน ให้เลือกไฟล์ Netscape `cookies.txt` ด้วยปุ่ม Choose cookies"),
                     ("02  ดาวน์โหลดวิดีโอ", "เลือกโหมดที่ต้องการ แล้วกด 1 DOWNLOAD งานจะถูกเพิ่มในคิวทันที สามารถเลือกคุณภาพ Best available หรือจำกัดความละเอียดสูงสุด 2160p / 1080p / 720p / 480p ได้"),
-                    ("03  โหลด Live และ TS", "เลือก Live - Auto GPU/CPU เพื่อให้ PixClip ตรวจ NVIDIA/AMD และเลือก NVENC/AMF/VA-API หรือ CPU ให้อัตโนมัติ หรือเลือก Live - Streamlink / Live - NVIDIA NVENC เองก็ได้ โปรแกรมจะแสดงเปอร์เซ็นต์และเวลาโดยประมาณเมื่อคำนวณได้"),
+                    ("03  โหลด Live และ TS", "เลือก Live - Auto GPU/CPU เพื่อให้ PixClip ตรวจ NVIDIA/AMD และเลือก NVENC/AMF/VA-API หรือ CPU ให้อัตโนมัติ หรือเลือก Live - Streamlink / Live - NVIDIA NVENC เองก็ได้ หาก TikTok มองไม่เห็น Live ให้เลือกไฟล์ Netscape `cookies.txt` ก่อนเพิ่มงาน โปรแกรมจะแสดงเปอร์เซ็นต์และเวลาโดยประมาณเมื่อคำนวณได้"),
                     ("04  TS → MP4 อัตโนมัติ", "เปิดตัวเลือก TS -> MP4 (keep TS) ก่อนเพิ่มงาน โปรแกรมจะแปลงด้วยการ copy stream และเก็บไฟล์ TS ต้นฉบับไว้ หากเปิดไม่ได้ให้ใช้โหมด TS to MP4 - Compatible H.264"),
                     ("05  Queue / History", "กด Queue / History เพื่อเพิ่มหลาย URL (หนึ่งบรรทัดต่อหนึ่งลิงก์), ตั้งงานพร้อมกัน 1–4 งาน, หยุดรับงานใหม่ด้วย Pause queue, ยกเลิก, ลบรายการออกจากประวัติ (ไม่ลบไฟล์), ลองใหม่, เปิดไฟล์, เปิดโฟลเดอร์ หรือดู Job log ได้"),
                     ("06  ตั้งเวลาอัด Live", "เลือกโหมด Live ก่อน เปิด Queue / History แล้วใส่เวลาเครื่องรูปแบบ YYYY-MM-DD HH:MM และจำนวนนาที จากนั้นกด Add timed Live ต้องเปิด PixClip และให้เครื่องตื่นอยู่ตลอดช่วงเวลาอัด"),
@@ -475,9 +499,9 @@ class WorkflowUI:
                 "close": "Close window",
                 "full": "Open full guide",
                 "sections": (
-                    ("01  Getting started", "Click Install tools to install yt-dlp, FFmpeg, and Streamlink. On Linux, it also installs `python3-tk` when needed. Paste a video or Live URL, then choose the destination folder. PixClip remembers the last folder for the next launch."),
+                    ("01  Getting started", "Click Install tools to install yt-dlp, FFmpeg, and Streamlink. On Linux, it also installs `python3-tk` when needed. Paste a video or Live URL, then choose the destination folder. PixClip remembers the last folder for the next launch. If a site requires login, choose a Netscape `cookies.txt` file."),
                     ("02  Download video", "Choose a mode and press 1 DOWNLOAD to add a job to the queue. Select Best available or set a maximum resolution of 2160p, 1080p, 720p, or 480p."),
-                    ("03  Record Live and TS", "Choose Live - Auto GPU/CPU to detect NVIDIA or AMD and select NVENC, AMF, VA-API, or CPU automatically. You can also choose Live - Streamlink or Live - NVIDIA NVENC manually. Progress and an estimated time appear when available."),
+                    ("03  Record Live and TS", "Choose Live - Auto GPU/CPU to detect NVIDIA or AMD and select NVENC, AMF, VA-API, or CPU automatically. You can also choose Live - Streamlink or Live - NVIDIA NVENC manually. If TikTok hides a Live stream, choose a Netscape `cookies.txt` file before adding the job. Progress and an estimated time appear when available."),
                     ("04  Automatic TS to MP4", "Enable TS -> MP4 (keep TS) before adding a job. PixClip remuxes with stream copy and keeps the original TS file. If the MP4 container is not compatible, use TS to MP4 - Compatible H.264."),
                     ("05  Queue / History", "Use Queue / History to add multiple URLs, set 1-4 parallel jobs, pause new jobs, cancel, delete history entries without deleting media files, retry, open files or folders, and view job logs."),
                     ("06  Schedule a Live recording", "Choose a Live mode, open Queue / History, enter local time as YYYY-MM-DD HH:MM and the number of minutes, then press Add timed Live. Keep PixClip open and keep the computer awake."),
