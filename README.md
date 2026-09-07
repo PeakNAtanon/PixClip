@@ -37,7 +37,7 @@ export PATH="$HOME/.local/bin:$PATH"
 PixClip
 ```
 
-The installer downloads PixClip, installs `python3-tk` on apt-based Linux when needed, installs or verifies media tools, and creates the `PixClip` command.
+The installer downloads PixClip, installs `python3-tk` on apt-based Linux when needed, installs yt-dlp and Streamlink, validates FFmpeg/ffprobe, and creates the `PixClip` command. FFmpeg/ffprobe are not installed automatically on Linux.
 
 ### Windows
 
@@ -61,6 +61,38 @@ python3 media_toolkit.py --compatibility-test
 ```
 
 Linux desktop GUI requires a working desktop/WSLg session and Tkinter. Headless Linux should use `--cli`.
+
+## Linux distribution support
+
+PixClip is Python/Tkinter based and is designed to run on most mainstream Linux distributions. The easiest path is an apt-based distribution:
+
+| Distribution | GUI | What must be installed manually |
+| --- | --- | --- |
+| Ubuntu, Debian, Linux Mint, Pop!_OS | Yes | `python3-pip`, `ffmpeg`, `curl`, and `tar`; `python3-tk` is installed automatically by PixClip when possible |
+| Fedora | Yes | `python3`, `python3-pip`, `python3-tkinter`, `ffmpeg`, `curl`, and `tar` |
+| Arch Linux, Manjaro | Yes | `python`, `python-pip`, `tk`, `ffmpeg`, `curl`, and `tar` |
+| WSL2 + WSLg | Yes, with WSLg | Use the Ubuntu/Debian instructions; without WSLg use `--cli` |
+
+For Ubuntu/Debian-family systems, the recommended preparation is:
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-pip python3-tk ffmpeg curl tar
+```
+
+For Fedora:
+
+```bash
+sudo dnf install -y python3 python3-pip python3-tkinter curl tar
+```
+
+Install `ffmpeg` from an enabled Fedora repository (some installations require RPM Fusion), then confirm both `ffmpeg -version` and `ffprobe -version` work. For Arch/Manjaro:
+
+```bash
+sudo pacman -S --needed python python-pip tk ffmpeg curl tar
+```
+
+The installer downloads and verifies yt-dlp and installs Streamlink with Python pip. On non-apt distributions, Tkinter and FFmpeg must be prepared manually before running `install.sh`. NVIDIA/AMD hardware encoding additionally depends on the correct graphics driver and an FFmpeg build containing the matching encoder; CPU encoding remains available as a fallback.
 
 ## Development and tests
 

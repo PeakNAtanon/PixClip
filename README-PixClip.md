@@ -16,12 +16,48 @@ GUI แบบ Terminal / Pixel art สำหรับ Windows และ Linux �
 
 ## ติดตั้งแบบง่ายสำหรับการแจก Open Source
 
-หลังอัปโหลด repository ไป GitHub แล้ว เปลี่ยน `OWNER/REPO` เป็นชื่อจริงของ repository:
+หลังอัปโหลด repository ไป GitHub แล้ว ใช้ repository นี้ได้เลย:
 
 - Linux / WSL:
-  `curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/install.sh | bash -s -- OWNER/REPO`
+  `curl -fsSL https://raw.githubusercontent.com/PeakNAtanon/PixClip/main/install.sh | bash -s -- PeakNAtanon/PixClip`
 - Windows: แตก ZIP หรือ clone repository แล้วดับเบิลคลิก `Install-PixClip.bat` โปรแกรมจะตรวจ/ติดตั้ง Python ผ่าน `winget`, ติดตั้ง media tools, สร้าง shortcut และเปิด GUI ให้
 - Linux ที่ไม่มี GUI: รันคำสั่ง curl จาก terminal ได้ แต่การเปิด GUI ต้องใช้ WSLg/desktop และติดตั้ง `python3-tk` สำเร็จ
+
+## ดิสโทร Linux ที่รองรับและสิ่งที่ต้องติดตั้งเอง
+
+PixClip ใช้ Python 3, Tkinter, yt-dlp, FFmpeg/ffprobe และ Streamlink จึงใช้ได้กับดิสโทร Linux หลัก ๆ ดังนี้:
+
+| ดิสโทร | GUI | ต้องติดตั้งเอง |
+| --- | --- | --- |
+| Ubuntu, Debian, Linux Mint, Pop!_OS | ได้ | `python3-pip`, `ffmpeg`, `curl`, `tar`; `python3-tk` จะถูกติดตั้งอัตโนมัติเมื่อใช้ `apt-get` และมีสิทธิ์ `sudo` |
+| Fedora | ได้ | `python3`, `python3-pip`, `python3-tkinter`, `ffmpeg`, `curl`, `tar` |
+| Arch Linux, Manjaro | ได้ | `python`, `python-pip`, `tk`, `ffmpeg`, `curl`, `tar` |
+| WSL2 + WSLg | ได้เมื่อมี WSLg | ใช้แพ็กเกจแบบ Ubuntu/Debian; ถ้าไม่มี WSLg ให้ใช้ `./PixClip --cli` |
+
+### คำสั่งเตรียมเครื่อง
+
+Ubuntu / Debian / Mint / Pop!_OS:
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-pip python3-tk ffmpeg curl tar
+```
+
+Fedora:
+
+```bash
+sudo dnf install -y python3 python3-pip python3-tkinter curl tar
+```
+
+จากนั้นติดตั้ง `ffmpeg` จาก repository ที่เปิดใช้งานอยู่ หาก Fedora เครื่องนั้นยังไม่มีแพ็กเกจ (บางระบบต้องเปิด RPM Fusion ก่อน) และตรวจด้วย `ffmpeg -version` กับ `ffprobe -version`
+
+Arch Linux / Manjaro:
+
+```bash
+sudo pacman -S --needed python python-pip tk ffmpeg curl tar
+```
+
+`install.sh` จะดาวน์โหลดและตรวจสอบ yt-dlp ให้ และ `Install-Media-Tools.py` จะติดตั้ง Streamlink ผ่าน pip แต่จะไม่ติดตั้ง FFmpeg/ffprobe บน Linux ดังนั้นดิสโทรที่ไม่ใช่ apt ต้องติดตั้ง Tkinter และ FFmpeg เองก่อน ส่วนการเข้ารหัสด้วย NVIDIA/AMD ต้องมีไดรเวอร์ที่ถูกต้องและ FFmpeg ที่มี encoder ตรงกับ GPU; หากไม่พร้อมให้เลือก CPU ได้
 
 ## License
 
