@@ -29,13 +29,32 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg --no-progress -y }
-      - name: FFmpeg for media checks on macOS
-        if: runner.os == 'macOS'
+      - name: FFmpeg for Apple Silicon media checks
+        if: runner.os == 'macOS' && runner.arch == 'ARM64'
         run: |
           if ! command -v ffmpeg >/dev/null; then
             brew install ffmpeg@8
             echo "$(brew --prefix ffmpeg@8)/bin" >> "$GITHUB_PATH"
           fi
+      - name: Verified FFmpeg for Intel macOS media checks
+        if: runner.os == 'macOS' && runner.arch == 'X64'
+        run: |
+          if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/pixclip-media"
+          cd "$RUNNER_TEMP/pixclip-media"
+          base="https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1"
+          curl --fail --silent --show-error --location --retry 2 -O "$base/ffmpeg-darwin-x64.gz"
+          curl --fail --silent --show-error --location --retry 2 -O "$base/ffprobe-darwin-x64.gz"
+          printf '%s\n' \
+            '929b375c1182d956c51f7ac25e0b2b0411fb01f6f407aa15c9758efeb4242106  ffmpeg-darwin-x64.gz' \
+            'd4da574d6e2e197bd259b47d69cf262df9e312af24ad960444f6d806d3d4c186  ffprobe-darwin-x64.gz' \
+            | shasum -a 256 -c -
+          gzip -dc ffmpeg-darwin-x64.gz > ffmpeg
+          gzip -dc ffprobe-darwin-x64.gz > ffprobe
+          chmod +x ffmpeg ffprobe
+          echo "$PWD" >> "$GITHUB_PATH"
       - run: cargo fmt --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked
