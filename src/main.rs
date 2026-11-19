@@ -63,6 +63,14 @@ fn run(mut arguments: Vec<String>) -> Result<()> {
     if arguments.is_empty() || arguments == ["--gui"] {
         return app::run();
     }
+    if arguments == ["--licenses"] {
+        println!(
+            "{}\n\nNoto Sans Thai\n{}",
+            include_str!("../LICENSE"),
+            include_str!("../assets/fonts/OFL.txt")
+        );
+        return Ok(());
+    }
     if arguments.iter().any(|a| a == "--help" || a == "-h") {
         println!(
             "PixClip - Download / Record / Convert / Cut / Join\n\nUsage: pixclip [--gui | --cli | COMMAND]\n\n  --compatibility-test\n  --install-tools [--source-check]\n  --update-ytdlp\n  --download-ts URL OUTPUT_DIR\n  --download-live-ts-auto URL OUTPUT_DIR\n  --download-live-ts-nvenc URL OUTPUT_DIR\n  --record-live-streamlink URL OUTPUT_DIR\n  --download MODE_INDEX URL OUTPUT_DIR [--audio-format FORMAT] [--audio-bitrate KBPS]\n  --convert MODE_INDEX INPUT\n  --cut INPUT OUTPUT START END [--accurate]\n  --join OUTPUT INPUT INPUT... [--accurate]\n\nDownload modes: 0-12, conversion modes: 0-5. Times: seconds, MM:SS or HH:MM:SS.\nAudio modes 3 and 6 support mp3, m4a, flac and wav. MP3/M4A accept 320, 192 or 128 kbps.\nUse --playlist-items 1,3 for playlist downloads, --start TIME --end TIME for mode 11, or --subtitle-lang en|th|all for mode 12.\nConversion mode 4 accepts --max-resolution 1080|720 and --compression balanced|smaller|smallest. Mode 5 accepts audio format and bitrate options.\nDownloads accept --cookies-file PATH. Existing outputs are kept.\nPixClip needs yt-dlp, FFmpeg, ffprobe and Streamlink; no Python runtime is required by the app."

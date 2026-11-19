@@ -2044,9 +2044,16 @@ impl App {
             13.3,
         )
         .clicked()
-            && let Err(error) = process::open(&model::root().join("docs/README-PixClip.md"))
         {
-            self.error(error);
+            let guide = model::root().join("docs/README-PixClip.md");
+            let target = if guide.is_file() {
+                &guide
+            } else {
+                Path::new("https://github.com/PeakNAtanon/PixClip/blob/main/docs/README-PixClip.md")
+            };
+            if let Err(error) = process::open(target) {
+                self.error(error);
+            }
         }
     }
 

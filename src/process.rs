@@ -375,7 +375,34 @@ pub fn open_cli() -> Result<()> {
             .creation_flags(0x00000010)
             .spawn()?;
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        use std::{fs, io::Write, os::unix::fs::PermissionsExt};
+
+        let state = model::state_dir();
+        fs::create_dir_all(&state)?;
+        let mut launch = tempfile::Builder::new()
+            .prefix("PixClip-")
+            .suffix(".command")
+            .tempfile_in(state)?;
+        let quote = |path: &Path| format!("'{}'", path.to_string_lossy().replace('\'', "'\\''"));
+        write!(
+            launch,
+            "#!/bin/sh\nrm -f -- \"$0\"\ncd {} || exit\nexec {} --cli\n",
+            quote(&model::root()),
+            quote(&executable),
+        )?;
+        launch
+            .as_file()
+            .set_permissions(fs::Permissions::from_mode(0o700))?;
+        let script = launch.into_temp_path();
+        command("open")
+            .args(["-a", "Terminal"])
+            .arg(script.as_os_str())
+            .spawn()?;
+        let _ = script.keep()?;
+    }
+    #[cfg(all(not(windows), not(target_os = "macos")))]
     {
         let terminal = ["x-terminal-emulator", "xterm", "konsole", "gnome-terminal"]
             .into_iter()

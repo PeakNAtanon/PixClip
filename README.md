@@ -201,3 +201,4 @@ Support development on [Ko-fi](https://ko-fi.com/peaknatanon).
 
 [MIT](LICENSE). External media tools keep their own licenses. The bundled
 Noto Sans Thai font is covered by [OFL](assets/fonts/OFL.txt).
+Run the executable with `--licenses` to read the app and font notices in the terminal.
