@@ -1,0 +1,13 @@
+* text=auto
+*.rs text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+/PixClip text eol=lf
+*.bat text eol=crlf
+*.png binary
+*.ico binary
+*.ttf binary
+*.aseprite binary
+*.wxs text eol=lf

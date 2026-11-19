@@ -1,22 +1,13 @@
 @echo off
-rem Launch PixClip without a console window.
 setlocal
-
 cd /d "%~dp0"
-
-where pyw.exe >nul 2>&1
-if not errorlevel 1 (
-    start "" /b pyw.exe "%~dp0media_toolkit.py" %*
-    exit /b 0
+if not exist "%~dp0PixClip.exe" (
+    echo Build PixClip first: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1
+    pause
+    exit /b 1
 )
-
-where pythonw.exe >nul 2>&1
-if not errorlevel 1 (
-    start "" /b pythonw.exe "%~dp0media_toolkit.py" %*
-    exit /b 0
+if "%~1"=="" (
+    start "" "%~dp0PixClip.exe" --gui
+) else (
+    "%~dp0PixClip.exe" %*
 )
-
-echo Python 3 was not found.
-echo Install Python 3 for Windows, then double-click this file again.
-pause
-exit /b 1

@@ -1,0 +1,58 @@
+name: Rust checks
+on: [push, pull_request]
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            platform: windows-x64
+          - runner: ubuntu-24.04
+            platform: linux-x64
+          - runner: macos-15
+            platform: macos-arm64
+          - runner: macos-15-intel
+            platform: macos-x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Linux development libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxkbcommon-dev libwayland-dev libasound2-dev ffmpeg
+      - name: FFmpeg for UI wiring checks on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg --no-progress -y }
+      - name: FFmpeg for media checks on macOS
+        if: runner.os == 'macOS'
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            brew install ffmpeg@8
+            echo "$(brew --prefix ffmpeg@8)/bin" >> "$GITHUB_PATH"
+          fi
+      - run: cargo fmt --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked
+      - run: cargo build --release --locked
+      - name: Build and validate native archive
+        if: runner.os != 'Windows'
+        env:
+          PIXCLIP_STATE_DIR: ${{ runner.temp }}/pixclip-release-state
+        run: |
+          bash scripts/package-unix.sh
+          mkdir -p "$RUNNER_TEMP/pixclip-smoke"
+          tar -xzf dist/PixClip-*.tar.gz -C "$RUNNER_TEMP/pixclip-smoke"
+          "$RUNNER_TEMP/pixclip-smoke/PixClip/PixClip" --compatibility-test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pixclip-${{ matrix.platform }}
+          path: |
+            target/release/pixclip.exe
+            dist/PixClip-*.tar.gz
+          if-no-files-found: error

@@ -1,155 +1,203 @@
-<p align="center">
-  <img src="assets/pixclip-icon.png" alt="PixClip logo" width="160">
-</p>
-
+<p align="center"><img src="assets/pixclip-mascot-512.png" alt="PixClip pixel-art camera mascot" width="256"></p>
 <h1 align="center">PixClip</h1>
+<p align="center">Download / Record / Convert / Cut / Join</p>
 
-<p align="center">
-  Universal pixel-art media toolkit for Windows and Linux
-</p>
+PixClip is a native Rust media toolkit for Windows, Linux, and macOS with a dark
+mint-and-amber theme and the original control layout.
+The application uses yt-dlp, FFmpeg, ffprobe and Streamlink as external tools.
+It does not launch Python or require a Python installation to run its UI or queue.
+Streamlink and yt-dlp retain their own runtime and packaging requirements.
 
-<p align="center">
-  Download videos and Live streams · Convert · Cut · Join · Schedule recordings
-</p>
+## Run
 
-PixClip is a Python-first desktop media toolkit with a terminal-inspired pixel-art GUI. It uses yt-dlp, FFmpeg, ffprobe, and Streamlink while keeping the workflow simple for both Windows and Linux.
+Get the Windows, Linux and macOS builds from [GitHub Releases](https://github.com/PeakNAtanon/PixClip/releases/latest).
+
+- **Windows x64** — run the MSI for a per-user install with a Start menu shortcut, or download the portable EXE. Open PixClip and choose **Install tools** on first use.
+- **Linux x64** — extract the archive, install FFmpeg with your distribution's package manager, and run `./PixClip --install-tools`, then `./PixClip`. Release archives are built on Ubuntu 24.04.
+- **macOS** — choose `arm64` for Apple Silicon or `x64` for Intel. Extract the archive, run `brew install ffmpeg streamlink`, and then run `./PixClip --install-tools` followed by `./PixClip`.
+
+Run `./PixClip --cli` in a terminal on Linux or macOS. The Windows MSI installs in
+`%LOCALAPPDATA%\PixClipApp`, while queue history is stored in `%LOCALAPPDATA%\PixClip`.
+
+If you downloaded source code, build the application first:
+
+```powershell
+# Windows: Rust with its matching MSVC or MinGW build tools is required.
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1
+.\PixClip.bat
+```
+
+```bash
+# Linux: Rust, a C compiler, pkg-config, OpenSSL and desktop development libraries.
+# Debian / Ubuntu build dependencies:
+sudo apt install build-essential pkg-config libssl-dev libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxkbcommon-dev libwayland-dev libasound2-dev
+bash scripts/build.sh
+./PixClip
+```
+
+On macOS, install Rust, the Xcode Command Line Tools, and Homebrew dependencies.
+
+```bash
+xcode-select --install
+brew install ffmpeg streamlink
+bash scripts/build.sh
+./PixClip --install-tools
+./PixClip
+```
+
+The build scripts create `PixClip.exe` on Windows or `pixclip-bin` on Linux and macOS.
+Use `bash scripts/package-unix.sh` after building to create the native archive in `dist/`.
+
+To reproduce the Windows MSI, build the release executable first, then use the
+WiX 5.0.2 command-line tool with its matching UI extension.
+
+```powershell
+dotnet tool install --global wix --version 5.0.2
+wix extension add -g WixToolset.UI.wixext/5.0.2
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-msi.ps1
+```
+
+Linux users install FFmpeg/ffprobe with their package manager.
+The media-tool installer downloads standalone yt-dlp with checksum verification;
+on Windows it also downloads verified FFmpeg/ffprobe. Streamlink uses its official
+portable Windows ZIP or Linux AppImage with the release SHA-256 digest.
+On macOS, PixClip uses the installed FFmpeg, ffprobe and Streamlink, plus the verified
+universal yt-dlp executable. Linux AppImages require glibc 2.28 or newer.
 
 ## Features
 
-- Download video, playlist, MP3, MPEG-TS (`.ts`), and Live streams.
-- Kick VOD playback fallback for supported public VOD URLs.
-- Record Live with Streamlink or HLS and reconnect after temporary failures.
-- Use an optional Netscape `cookies.txt` file for sites that require a logged-in session.
-- Detect NVIDIA/AMD hardware and choose NVENC, AMF, VA-API, or CPU encoding automatically.
-- Convert TS to MP4, transcode H.265/HEVC to H.264/AAC, cut clips, and join clips.
-- Queue/history with cancel, delete-without-file-removal, retry, scheduled Live recordings, disk-space checks, progress, and ETA.
-- Bilingual `วิธีใช้ / HELP` popup in Thai and English.
-- GUI and CLI modes using Python standard library and Tkinter.
+Preview the current [main window](docs/screenshots/current-main.png),
+[queue](docs/screenshots/current-queue.png), [playlist selection](docs/screenshots/current-playlist.png),
+[clip editor](docs/screenshots/current-cut.png), [join](docs/screenshots/current-join.png),
+and [help](docs/screenshots/current-help.png).
+The [mascot](assets/pixclip-mascot-64.aseprite), [pixel camera icon](assets/pixclip-icon.aseprite), [button icons](assets/button-icons.aseprite), [header filmstrip](assets/pixclip-filmstrip.aseprite), [UI panels](assets/pixclip-panels.aseprite), and [dropdown arrows](assets/dropdown-arrows.aseprite) are editable in Aseprite.
+See the [comparison and test report](docs/RUST-PARITY.md) for the original Python references and validation limits.
 
-## Quick start
+- Video, playlist, audio and MPEG-TS downloads, including direct Kick VOD playback.
+- Select playlist items before queueing, download a time range, or save subtitles as SRT. Spotify Track and Playlist / Album modes let you review YouTube matches before queueing.
+- Live recording with Streamlink or benchmarked CPU and hardware H.264 encoding.
+- One to five parallel downloads, pause, cancel, retry, history and job logs.
+- Scheduled Live recordings with a fixed end time and reconnect attempts.
+- Optional Netscape `cookies.txt` files for authenticated sources.
+- Convert multiple files at once, convert TS to MP4 or HEVC to H.264, compress MP4, or extract audio as MP3, M4A, FLAC or WAV.
+- Frame previews, fast and accurate cuts, and ordered joins.
+- For smaller video files, choose **CONVERT → Compress MP4**, select **Balanced**, **Smaller**, or **Smallest**, and optionally limit resolution to 1080p or 720p. PixClip saves a separate MP4. Results depend on the source.
+- Disk-space checks during work; cancellation keeps partial media.
+- Thai/English help, native file dialogs, clipboard paste and hardware status.
 
-### Linux / WSL
+Scheduled jobs need PixClip open and the computer awake. Pause stops new jobs.
+Delete and Clear all remove queue/history entries while preserving media files.
+Fast joins require matching stream formats; Compatible mode re-encodes.
+The GUI offers Compatible mode when the selected clips have different stream settings.
+Pause queue holds downloads and scheduled recordings; local editing remains available.
+Cut Clip has a timeline with draggable trim handles, precise time fields, and preview playback with audio. Press Space to play or pause.
 
-Run this after replacing nothing—the repository is already configured:
+To cut a downloaded video, open **Queue / History → Files** for the completed job, select the video, and click **Open in Cut clip**. The editor loads it directly onto the timeline. This workflow is also in **HELP → 06 Queue / History**.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/PeakNAtanon/PixClip/main/install.sh | bash -s -- PeakNAtanon/PixClip
-export PATH="$HOME/.local/bin:$PATH"
-PixClip
-```
+## Auto encoder
 
-The installer downloads PixClip, installs `python3-tk` on apt-based Linux when needed, installs yt-dlp and Streamlink in PixClip's private Python environment, validates FFmpeg/ffprobe, and creates the `PixClip` command. FFmpeg/ffprobe are not installed automatically on Linux.
+PixClip times a short synthetic 1080p encode with each usable FFmpeg encoder.
+It measures the Live and file presets separately and keeps each winner for the
+current app session. The status bar displays both choices, and each job log shows
+the encoder being tried. Compare them from the terminal with `--compatibility-test`.
 
-### Windows
+| Platform | H.264 candidates |
+| --- | --- |
+| Windows | CPU `libx264`, NVIDIA NVENC, AMD AMF, Intel Quick Sync |
+| Linux | CPU `libx264`, NVIDIA NVENC, AMD AMF, Intel Quick Sync, VA-API render devices |
+| macOS | CPU `libx264`, Apple VideoToolbox hardware encoder |
 
-1. Download the repository with **Code → Download ZIP**, or clone it with Git.
-2. Extract it, then double-click [`Install-PixClip.bat`](Install-PixClip.bat).
-3. The installer checks Python, can install it with `winget`, installs the media tools, creates the PixClip shortcut, and opens the GUI.
+Only candidates that complete the actual test are ranked. Auto applies to Live
+GPU/CPU, H.264 conversions and compression, accurate cuts and compatible joins,
+download compatibility conversions, and eligible video time-range downloads.
+Auto retries a failed hardware encode using the CPU path. Time range retries
+with yt-dlp's original options when a hardware encode fails, for example when
+the source uses a container that cannot hold H.264.
 
-For a manual launch, use [`OPEN-GUI-CMD.bat`](OPEN-GUI-CMD.bat) or [`PixClip.bat`](PixClip.bat).
+Fast modes copy the original streams. The explicitly named NVIDIA modes keep
+their NVIDIA encoders. Benchmark results depend on the workload and system load,
+and the same quality level can produce different file sizes with different encoders.
 
-## Using `cookies.txt`
+## Existing history
 
-Some Live pages, including TikTok Live, may require the same logged-in browser session that can play the stream. PixClip accepts a Netscape-format `cookies.txt` export:
+The Rust app reads the existing `jobs.json` and `settings.json` formats:
 
-1. Sign in to the website in your browser.
-2. Export the website cookies as a Netscape `cookies.txt` file using a trusted browser cookie export tool.
-3. Open PixClip and click `Choose` beside `Cookies: OFF`.
-4. Select the exported file, choose a Live mode, paste the URL, and click `DOWNLOAD`.
-5. Click `Clear` when you want PixClip to return to public access.
+- Windows: `%LOCALAPPDATA%/PixClip/`
+- Linux and macOS: `${XDG_STATE_HOME:-~/.local/state}/PixClip/`
 
-PixClip remembers only the file path and does not print cookie values in the log. Treat the file like a password: never share it or commit it to Git. The repository ignores common cookie export filenames automatically.
+Before its first history rewrite it preserves an exact `jobs.pre-rust.json` copy.
+Interrupted work needs manual retry. Invalid history is kept and new jobs use a
+separate recovery file. A per-user lock prevents concurrent history writers.
+Unknown JSON fields and legacy output-folder paths are preserved.
+Invalid settings load defaults after preserving an exact `settings-invalid-*.json` backup.
+Local edit retries restore the saved concat list and ask before replacing output.
 
-## Manual commands
+For isolated development/tests, set `PIXCLIP_STATE_DIR` to a temporary directory.
+Keep cookie exports private; they contain login credentials. Only their path is
+saved. Resolved signed media URLs are hidden from job logs.
 
-```bash
-# GUI
-python3 media_toolkit.py
-
-# Terminal mode after install.sh
-PixClip --cli
-
-# Terminal mode from the source folder
-python3 media_toolkit.py --cli
-
-# Environment report
-python3 media_toolkit.py --compatibility-test
-
-# Live recording with an exported Netscape cookies.txt file
-python3 media_toolkit.py --record-live-streamlink "LIVE_URL" "$HOME/Videos" --cookies-file "$HOME/private/cookies.txt"
-```
-
-Linux desktop GUI requires a working desktop/WSLg session and Tkinter. Headless Linux should use `--cli`.
-The GUI's `Choose` button beside `Cookies: OFF` remembers only the file path. Never commit or share the cookies file.
-
-## Organized output folders
-
-New queued downloads and direct CLI downloads are grouped under the selected folder by type and date:
+Downloads are stored under the chosen folder:
 
 ```text
 Videos/ or Live/ or Playlists/ or Audio/
   YYYY-MM-DD/
-    HHMMSS - source [job-id]/   # Queue / History
-    HHMMSS - source/            # direct CLI
+    HHMMSS - source [job-id]/
 ```
 
-`Open folder` opens the job's exact folder. Existing history without the new folder field continues to use the legacy `PixClip-<job-id>` layout. Convert, cut, and join outputs remain at the path you choose.
+## CLI
 
-## Linux distribution support
+```text
+PixClip.exe --cli
+PixClip.exe --compatibility-test
+PixClip.exe --install-tools
+PixClip.exe --update-ytdlp
+PixClip.exe --download-ts URL OUTPUT_DIR
+PixClip.exe --download-live-ts-auto URL OUTPUT_DIR
+PixClip.exe --download-live-ts-nvenc URL OUTPUT_DIR
+PixClip.exe --record-live-streamlink URL OUTPUT_DIR --cookies-file cookies.txt
+PixClip.exe --convert 0 INPUT.ts
+PixClip.exe --convert 4 INPUT.mp4 --compression smallest --max-resolution 720
+PixClip.exe --cut INPUT.mp4 OUTPUT.mp4 00:01:00 00:01:30 --accurate
+PixClip.exe --join OUTPUT.mp4 FIRST.mp4 SECOND.mp4
+```
 
-PixClip is Python/Tkinter based and is designed to run on most mainstream Linux distributions. The easiest path is an apt-based distribution:
+On Linux replace `PixClip.exe` with `./PixClip`. Use `--help` for all commands.
+Direct CLI jobs use a temporary queue, leave GUI history untouched, and refuse
+to overwrite outputs. **TUI** opens the terminal menu from the desktop app.
+The terminal menu includes the original choices 1–20 and adds 21–26 for time ranges, subtitles, playlist item numbers, compression, audio extraction, and cutting a clip. Direct CLI download folders
+omit the queue job ID, matching the original terminal workflow.
 
-| Distribution | GUI | What must be installed manually |
-| --- | --- | --- |
-| Ubuntu, Debian, Linux Mint, Pop!_OS | Yes | `python3-venv`, `ffmpeg`, `curl`, and `tar`; `python3-tk` and `python3-venv` are installed automatically by PixClip when possible |
-| Fedora | Yes | `python3`, `python3-pip`, `python3-tkinter`, `ffmpeg`, `curl`, and `tar` |
-| Arch Linux, Manjaro | Yes | `python`, `python-pip`, `tk`, `ffmpeg`, `curl`, and `tar` |
-| WSL2 + WSLg | Yes, with WSLg | Use the Ubuntu/Debian instructions; without WSLg run `PixClip --cli` |
+## Code and checks
 
-For Ubuntu/Debian-family systems, the recommended preparation is:
+```text
+src/main.rs       Entry points and terminal menu
+src/model.rs      Settings, compatible history, paths and validation
+src/jobs.rs       Queue transitions and worker threads
+src/process.rs    Shared process-tree cancellation and output capture
+src/media.rs      Download, Live, convert, cut, join and preview operations
+src/tools.rs      Tool lookup, verified installation and hardware detection
+src/app.rs        Native UI with the original theme and workflows
+assets/           Original artwork and bundled OFL Thai font
+scripts/          Build/install helpers
+```
 
 ```bash
-sudo apt update
-sudo apt install -y python3 python3-venv python3-tk ffmpeg curl tar
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings
+# FFmpeg must be discoverable for the UI wiring checks.
+cargo test --locked
+# Requires FFmpeg, ffprobe and yt-dlp; synthetic media and localhost only:
+cargo test --locked -- --ignored
 ```
 
-For Fedora:
+These checks do not prove public-site compatibility or every GPU driver/backend.
+GUI smoke builds can enable `--features screenshot` and set `PIXCLIP_SCREENSHOT_TO`
+to a PNG filename. Always use an isolated `PIXCLIP_STATE_DIR` for UI tests.
 
-```bash
-sudo dnf install -y python3 python3-pip python3-tkinter curl tar
-```
-
-Install `ffmpeg` from an enabled Fedora repository (some installations require RPM Fusion), then confirm both `ffmpeg -version` and `ffprobe -version` work. For Arch/Manjaro:
-
-```bash
-sudo pacman -S --needed python python-pip tk ffmpeg curl tar
-```
-
-The installer downloads and verifies yt-dlp and installs Streamlink inside PixClip's private Python virtual environment, avoiding PEP 668 conflicts with system Python. On non-apt distributions, Tkinter, Python venv support, and FFmpeg must be prepared manually before running `install.sh`. NVIDIA/AMD hardware encoding additionally depends on the correct graphics driver and an FFmpeg build containing the matching encoder; CPU encoding remains available as a fallback.
-
-## Development and tests
-
-```bash
-python3 -m py_compile media_toolkit.py pixclip_jobs.py pixclip_ui.py
-python3 -m unittest -v test_pixclip_jobs
-```
-
-Integration tests use synthetic local media and are opt-in:
-
-```bash
-PIXCLIP_INTEGRATION=1 python3 -m unittest -v test_pixclip_integration
-```
-
-See [`README-PixClip.md`](README-PixClip.md) for the detailed Thai user guide and [`AGENTS.md`](AGENTS.md) for contributor instructions.
-
-## Support PixClip
-
-If PixClip is useful to you, you can support its continued development on Ko-fi:
-
-[☕ Support PixClip on Ko-fi](https://ko-fi.com/peaknatanon)
+See [the Thai guide](docs/README-PixClip.md) and [contributor instructions](AGENTS.md).
+Support development on [Ko-fi](https://ko-fi.com/peaknatanon).
 
 ## License
 
-PixClip is released under the [MIT License](LICENSE).
-
-yt-dlp, FFmpeg, ffprobe, Streamlink, and other external tools retain their own licenses and terms.
+[MIT](LICENSE). External media tools keep their own licenses. The bundled
+Noto Sans Thai font is covered by [OFL](assets/fonts/OFL.txt).

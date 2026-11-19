@@ -1,0 +1,72 @@
+{
+  "version": "0.2.1",
+  "date": "2026-11-17",
+  "platform": "Windows x86_64",
+  "gpu": "NVIDIA GeForce RTX 2060",
+  "exe_sha256": "09719f223d80536c3343906749fa9a7136770c5566deb8e0194dd216b3707386",
+  "unit_integration": {
+    "passed": 26,
+    "failed": 0,
+    "skipped": 0
+  },
+  "native_window_controls": "passed",
+  "portable_installer_no_python_or_winget_on_path": "passed",
+  "evidence": {
+    "gui": {
+      "executable": "PixClip.exe",
+      "work": ".cache/gui-media-120f971a",
+      "checks": [
+        "Convert while downloads paused",
+        "Cut with file picker and manual HH/MM/SS fields",
+        "Fast join",
+        "Mismatched formats offer Compatible join",
+        "Download from localhost through main UI",
+        "Source unchanged",
+        "Clean exit"
+      ],
+      "jobs": 5
+    },
+    "media_modes": {
+      "work": ".cache/media-modes-2e8e2927",
+      "checks": [
+        "Download mode 0",
+        "Download mode 1",
+        "Download mode 2",
+        "Download mode 3",
+        "Download mode 4",
+        "Download mode 5",
+        "Download mode 6",
+        "TS download",
+        "Convert mode 0",
+        "Convert mode 1",
+        "Convert mode 2",
+        "Real HEVC to H.264 conversion",
+        "--download-live-ts-auto",
+        "--download-live-ts-nvenc",
+        "--record-live-streamlink"
+      ],
+      "public_sites_tested": false,
+      "source_preserved": true
+    },
+    "live_schedule_cancel": {
+      "scheduled": "passed",
+      "streamlink_cancel": "passed",
+      "partial_files_preserved": true,
+      "work": ".cache/live-window-1e917d20"
+    }
+  },
+  "not_verified": [
+    "public websites and authenticated accounts",
+    "Linux desktop runtime",
+    "AMD AMF/VA-API on real hardware"
+  ],
+  "distribution_smoke": {
+    "passed": true,
+    "archive_crc": "passed",
+    "exe_matches_project": true,
+    "gui": "opened and closed cleanly",
+    "cli": "help and original menu opened and exited",
+    "python_cargo_winget_on_path": false,
+    "media_tools_on_path": false
+  }
+}

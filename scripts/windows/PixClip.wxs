@@ -1,0 +1,49 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="PixClip" Manufacturer="PeakNAtanon" Version="$(var.Version)"
+           Language="1033" UpgradeCode="78FFEAB5-06F2-4630-823F-5AD5D7798BF8"
+           Scope="perUser" InstallerVersion="500">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of PixClip is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <Icon Id="PixClipIcon" SourceFile="$(var.SourceDir)\assets\pixclip.ico" />
+    <Property Id="ARPPRODUCTICON" Value="PixClipIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/PeakNAtanon/PixClip" />
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="INSTALLFOLDER" Name="PixClipApp">
+        <Component Id="AppFiles" Guid="00956CA8-B51D-4B42-872F-F5431121A9C6">
+          <File Id="PixClipExe" Source="$(var.Executable)" Name="PixClip.exe" />
+          <File Id="License" Source="$(var.SourceDir)\LICENSE" />
+          <File Id="FontLicense" Source="$(var.SourceDir)\assets\fonts\OFL.txt"
+                Name="LICENSE-NotoSansThai.txt" />
+          <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\PixClip\Installer" Name="AppFiles"
+                         Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+        <Directory Id="DocsFolder" Name="docs">
+          <Component Id="Guide" Guid="BE4F4863-21D3-497A-A5AE-2716A6ADCC4C">
+            <File Source="$(var.SourceDir)\docs\README-PixClip.md" />
+            <RemoveFolder Id="RemoveDocsFolder" On="uninstall" />
+            <RegistryValue Root="HKCU" Key="Software\PixClip\Installer" Name="Guide"
+                           Type="integer" Value="1" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenu" Guid="AD5D0EEE-D9FD-4561-8D04-B75E578F64EF">
+        <Shortcut Id="PixClipStartMenu" Name="PixClip" Target="[#PixClipExe]"
+                  Icon="PixClipIcon" WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\PixClip\Installer" Name="StartMenu"
+                       Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+    <Feature Id="PixClip" Title="PixClip" Level="1">
+      <ComponentRef Id="AppFiles" />
+      <ComponentRef Id="Guide" />
+      <ComponentRef Id="StartMenu" />
+    </Feature>
+  </Package>
+</Wix>

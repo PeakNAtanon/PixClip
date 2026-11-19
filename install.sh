@@ -15,7 +15,7 @@ if [[ ! "$BRANCH" =~ ^[A-Za-z0-9_./-]+$ || "$BRANCH" == *..* ]]; then
     exit 2
 fi
 
-for command in curl tar python3; do
+for command in curl tar cargo; do
     if ! command -v "$command" >/dev/null 2>&1; then
         echo "Required command was not found: $command" >&2
         exit 1
@@ -34,18 +34,20 @@ echo "Downloading PixClip from ${REPO_SLUG} (${BRANCH})..."
 curl -fsSL "$ARCHIVE_URL" -o "$ARCHIVE"
 tar -xzf "$ARCHIVE" -C "$TEMP_DIR"
 SOURCE_DIR="$(find "$TEMP_DIR" -mindepth 1 -maxdepth 1 -type d -print -quit)"
-if [[ -z "$SOURCE_DIR" || ! -f "$SOURCE_DIR/media_toolkit.py" ]]; then
+if [[ -z "$SOURCE_DIR" || ! -f "$SOURCE_DIR/Cargo.toml" || ! -f "$SOURCE_DIR/src/main.rs" ]]; then
     echo "The downloaded archive does not contain a valid PixClip source tree." >&2
     exit 1
 fi
 
 mkdir -p "$INSTALL_DIR"
 cp -a "$SOURCE_DIR/." "$INSTALL_DIR/"
-chmod +x "$INSTALL_DIR/PixClip" "$INSTALL_DIR/INSTALL-PIXCLIP-COMMAND.sh" "$INSTALL_DIR/install.sh"
+chmod +x "$INSTALL_DIR/PixClip" "$INSTALL_DIR/scripts/linux/INSTALL-PIXCLIP-COMMAND.sh" "$INSTALL_DIR/install.sh"
 
-echo "Installing PixClip tools and Linux GUI dependency..."
-python3 "$INSTALL_DIR/Install-Media-Tools.py"
-bash "$INSTALL_DIR/INSTALL-PIXCLIP-COMMAND.sh"
+echo "Building the native Rust application..."
+bash "$INSTALL_DIR/scripts/build.sh"
+echo "Installing PixClip media tools..."
+"$INSTALL_DIR/pixclip-bin" --install-tools
+bash "$INSTALL_DIR/scripts/linux/INSTALL-PIXCLIP-COMMAND.sh"
 
 echo
 echo "PixClip installed at: $INSTALL_DIR"

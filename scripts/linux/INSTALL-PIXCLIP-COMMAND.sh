@@ -7,8 +7,8 @@ while [ -L "$SOURCE" ]; do
     [[ "$TARGET" = /* ]] || TARGET="$(dirname "$SOURCE")/$TARGET"
     SOURCE="$TARGET"
 done
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$SOURCE")" && pwd)"
-COMMAND_DIR="${HOME}/.local/bin"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$SOURCE")/../.." && pwd)"
+COMMAND_DIR="${PIXCLIP_BIN_DIR:-${HOME}/.local/bin}"
 COMMAND_PATH="${COMMAND_DIR}/PixClip"
 
 mkdir -p "$COMMAND_DIR"

@@ -2,7 +2,7 @@ Option Explicit
 Dim shell, files, folder, shortcut, destination
 Set shell = CreateObject("WScript.Shell")
 Set files = CreateObject("Scripting.FileSystemObject")
-folder = files.GetParentFolderName(WScript.ScriptFullName)
+folder = files.GetParentFolderName(files.GetParentFolderName(files.GetParentFolderName(WScript.ScriptFullName)))
 destination = files.BuildPath(folder, "PixClip.lnk")
 Set shortcut = shell.CreateShortcut(destination)
 shortcut.TargetPath = files.BuildPath(folder, "PixClip.bat")

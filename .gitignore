@@ -1,6 +1,9 @@
-# Python cache and local runtime files
+# Local runtime caches and build output
 __pycache__/
 .venv/
+.cache/
+/target/
+/pixclip-bin
 *.py[cod]
 *.pyo
 *.log
@@ -19,11 +22,16 @@ cookies.txt
 cookies*.txt
 *.cookies
 
-# Third-party executables downloaded by Install-Media-Tools.py
+# Application and external media-tool executables
 *.exe
+/tools/*
+!/tools/README.md
 
 # Local distribution files and machine-specific shortcuts
 PixClip*.zip
+*.msi
+*.wixpdb
+/dist/
 *.lnk
 .DS_Store
 Thumbs.db
