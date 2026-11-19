@@ -24,7 +24,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Linux development libraries
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxkbcommon-dev libwayland-dev libasound2-dev ffmpeg
+        run: |
+          libraries=(pkg-config libssl-dev libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxkbcommon-dev libwayland-dev libasound2-dev ffmpeg)
+          if ! sudo apt-get install -y --no-install-recommends "${libraries[@]}"; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends "${libraries[@]}"
+          fi
       - name: FFmpeg for UI wiring checks on Windows
         if: runner.os == 'Windows'
         shell: pwsh

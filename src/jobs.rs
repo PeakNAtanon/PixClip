@@ -373,6 +373,8 @@ impl Drop for Engine {
             }
         }
         self.save();
+        // A forked child can briefly hold a duplicate of the lock file.
+        let _ = FileExt::unlock(&self._lock);
     }
 }
 
@@ -491,6 +493,8 @@ mod tests {
         engine.delete(&id).unwrap();
         assert!(folder.join("kept.ts").is_file());
         assert!(Engine::new(dir.path()).is_err());
+        #[cfg(unix)]
+        let _inherited_lock = engine._lock.try_clone().unwrap();
         drop(engine);
         let restored = Engine::new(dir.path()).unwrap();
         assert_eq!(restored.history.jobs.len(), 1);
