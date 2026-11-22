@@ -57,14 +57,74 @@ wix extension add -g WixToolset.UI.wixext/5.0.2
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-msi.ps1
 ```
 
+### Automatic release packages
+
+The [release workflow](.github/workflows/release.yml) runs when a `v*` tag is pushed.
+The tag must match the three-part version in `Cargo.toml`, such as `v0.2.22`
+for version `0.2.22`. Update `Cargo.toml` and `Cargo.lock` and commit the changes
+before creating the tag. This workflow does not create or push tags itself.
+
+- Windows: the existing build scripts and WiX 5.0.2 produce an x64 MSI.
+- Linux: [cargo-deb](https://github.com/kornelski/cargo-deb) and
+  [cargo-generate-rpm](https://github.com/cat-in-136/cargo-generate-rpm)
+  produce x64 DEB/RPM packages with a desktop launcher. FFmpeg and GTK are
+  declared as runtime dependencies; DEB also detects linked system libraries.
+- Arch Linux: a native Arch container runs `makepkg` to produce an x64
+  `.pkg.tar.zst` package with FFmpeg, yt-dlp and Streamlink dependencies.
+- Flatpak: the GNOME 49 SDK builds the app from vendored Rust sources. The x64
+  `.flatpak` bundle includes FFmpeg/ffprobe with H.264 and MP3 encoding, yt-dlp
+  and portable Streamlink. Downloads, Music and Videos are accessible; native
+  file dialogs can grant access to other selected files through portals.
+- macOS: [cargo-bundle](https://github.com/burtonageo/cargo-bundle) packages a
+  Universal Binary for Apple Silicon and Intel; create-dmg creates the DMG.
+  The app is signed ad hoc for executable integrity, without Developer ID
+  signing or notarization. FFmpeg and Streamlink still require Homebrew.
+
+All five builds must succeed before the workflow publishes the six installers
+and a SHA-256 checksum file to the tag's GitHub Release. A new release stays a
+draft until its uploads finish. The workflow uses the built-in `GITHUB_TOKEN`;
+only its publishing job has `contents: write` permission.
+Linux packages are built on `ubuntu-latest` and require compatible system
+libraries; this does not guarantee support for older distributions.
+
+Install the Arch package with `sudo pacman -U PixClip-X.Y.Z-linux-x64.pkg.tar.zst`.
+For Flatpak, enable the Flathub remote to obtain its runtime, then run
+`flatpak install --user PixClip-X.Y.Z-linux-x64.flatpak` and
+`flatpak run io.github.PeakNAtanon.PixClip`. These files are published as GitHub
+release assets; the workflow does not submit packages to AUR or Flathub.
+
 Linux users install FFmpeg/ffprobe with their package manager.
 The media-tool installer downloads standalone yt-dlp with checksum verification;
 on Windows it also downloads verified FFmpeg/ffprobe. Streamlink uses its official
 portable Windows ZIP or Linux AppImage with the release SHA-256 digest.
 On macOS, PixClip uses the installed FFmpeg, ffprobe and Streamlink, plus the verified
 universal yt-dlp executable. Linux AppImages require glibc 2.28 or newer.
+On Linux and macOS, downloaded tools are stored in the user's state directory
+under `tools/`, so installing them does not write into `/usr/bin` or the `.app`.
+macOS also searches `/opt/homebrew/bin` and `/usr/local/bin` for media tools when
+launched from Finder.
 
 ## Features
+
+### App updates
+
+PixClip 0.2.22 and later check GitHub Releases at startup and every six hours.
+Use **HELP → Check PixClip updates** to check manually. When a newer stable
+version is available, the app displays an update window.
+
+On Windows x64, **Update and restart** downloads the official MSI, verifies its
+size and GitHub SHA-256 digest, and waits for PixClip to exit before installing.
+The installer shows progress and reopens PixClip. Queued or running jobs must
+finish first; history, settings and downloaded media are kept. Portable users
+are migrated to a per-user MSI installation. Failed downloads keep the app open;
+installer failures show an error and attempt to reopen the previous app.
+
+Linux and macOS show update notifications and a Releases link; install the
+appropriate package with the platform package manager. Automatic installation
+in this release is supported on Windows x64. Existing versions without this
+feature need one manual upgrade to a build containing it.
+
+### Media tools
 
 Preview the current [main window](docs/screenshots/current-main.png),
 [queue](docs/screenshots/current-queue.png), [playlist selection](docs/screenshots/current-playlist.png),

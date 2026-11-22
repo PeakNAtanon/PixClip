@@ -1,10 +1,48 @@
 [package]
 name = "pixclip"
-version = "0.2.21"
+version = "0.2.22"
 edition = "2024"
 rust-version = "1.88"
 description = "Download, record, convert, cut and join media"
 license = "MIT"
+repository = "https://github.com/PeakNAtanon/PixClip"
+
+[package.metadata.deb]
+maintainer = "PeakNAtanon"
+depends = "$auto, ffmpeg, libgtk-3-0 | libgtk-3-0t64, libegl1, libgl1, libxkbcommon0"
+section = "video"
+assets = [
+    ["target/release/pixclip", "usr/bin/pixclip", "755"],
+    ["scripts/linux/pixclip.desktop", "usr/share/applications/pixclip.desktop", "644"],
+    ["assets/pixclip-icon.png", "usr/share/icons/hicolor/256x256/apps/pixclip.png", "644"],
+    ["LICENSE", "usr/share/doc/pixclip/LICENSE", "644"],
+    ["assets/fonts/OFL.txt", "usr/share/doc/pixclip/LICENSE-NotoSansThai.txt", "644"],
+    ["docs/README-PixClip.md", "usr/share/doc/pixclip/README-PixClip.md", "644"],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/pixclip", dest = "/usr/bin/pixclip", mode = "755" },
+    { source = "scripts/linux/pixclip.desktop", dest = "/usr/share/applications/pixclip.desktop", mode = "644" },
+    { source = "assets/pixclip-icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/pixclip.png", mode = "644" },
+    { source = "LICENSE", dest = "/usr/share/licenses/pixclip/LICENSE", mode = "644" },
+    { source = "assets/fonts/OFL.txt", dest = "/usr/share/licenses/pixclip/LICENSE-NotoSansThai.txt", mode = "644" },
+    { source = "docs/README-PixClip.md", dest = "/usr/share/doc/pixclip/README-PixClip.md", mode = "644", doc = true },
+]
+
+[package.metadata.generate-rpm.requires]
+ffmpeg = "*"
+gtk3 = "*"
+
+[package.metadata.bundle]
+name = "PixClip"
+identifier = "io.github.PeakNAtanon.PixClip"
+icon = ["assets/pixclip-mascot-512.png"]
+category = "public.app-category.video"
+resources = ["LICENSE", "assets/fonts/OFL.txt", "docs/README-PixClip.md"]
+
+[package.metadata.bundle.osx]
+minimum_system_version = "11.0"
 
 [features]
 screenshot = []

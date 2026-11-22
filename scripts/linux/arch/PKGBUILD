@@ -1,0 +1,28 @@
+# release.yml sets pkgver from the tag and generates source checksums.
+pkgname=pixclip
+pkgver=0.2.22
+pkgrel=1
+pkgdesc='Download, record, convert, cut and join media'
+arch=('x86_64')
+url='https://github.com/PeakNAtanon/PixClip'
+license=('MIT')
+depends=('alsa-lib' 'ffmpeg' 'gtk3' 'libx11' 'libxcursor' 'libxi'
+         'libxrandr' 'libxkbcommon' 'libglvnd' 'openssl' 'wayland'
+         'yt-dlp' 'streamlink')
+makedepends=('rust' 'pkgconf')
+source=('pixclip-source.tar.gz')
+
+build() {
+    cd "$srcdir/pixclip"
+    cargo build --release --locked
+}
+
+package() {
+    cd "$srcdir/pixclip"
+    install -Dm755 target/release/pixclip "$pkgdir/usr/bin/pixclip"
+    install -Dm644 scripts/linux/pixclip.desktop "$pkgdir/usr/share/applications/pixclip.desktop"
+    install -Dm644 assets/pixclip-icon.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/pixclip.png"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/pixclip/LICENSE"
+    install -Dm644 assets/fonts/OFL.txt "$pkgdir/usr/share/licenses/pixclip/LICENSE-NotoSansThai.txt"
+    install -Dm644 docs/README-PixClip.md "$pkgdir/usr/share/doc/pixclip/README-PixClip.md"
+}

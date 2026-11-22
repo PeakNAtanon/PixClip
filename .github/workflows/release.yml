@@ -1,0 +1,288 @@
+name: Release packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check tag against Cargo.toml
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os, re, tomllib
+          with open('Cargo.toml', 'rb') as manifest:
+              version = tomllib.load(manifest)['package']['version']
+          if not re.fullmatch(r'\d+\.\d+\.\d+', version):
+              raise SystemExit('MSI releases require a three-part version: X.Y.Z')
+          if os.environ['RELEASE_TAG'] != f'v{version}':
+              raise SystemExit(f'Tag must match Cargo.toml: v{version}')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print(f'version={version}', file=output)
+          PY
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable-x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install matching WiX tools
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          wix extension add -g WixToolset.UI.wixext/5.0.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Check Windows update helper with simulated installers
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/test-update-helper.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build EXE and MSI with project scripts
+        shell: pwsh
+        run: |
+          ./scripts/build.ps1
+          ./scripts/build-msi.ps1
+          if (-not (Get-ChildItem dist/*.msi)) { throw 'MSI was not created' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: dist/*.msi
+          if-no-files-found: error
+
+  linux:
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config libssl-dev libgtk-3-dev \
+            libxcb-shape0-dev libxcb-xfixes0-dev libfontconfig1-dev \
+            libx11-dev libxi-dev libxrandr-dev libxcursor-dev \
+            libxkbcommon-dev libwayland-dev libasound2-dev \
+            liblzma-dev rpm desktop-file-utils
+      - name: Install Linux packaging tools
+        run: |
+          cargo install cargo-deb --version 3.8.0 --locked
+          cargo install cargo-generate-rpm --version 0.21.1 --locked
+      - name: Build DEB and RPM
+        run: |
+          cargo build --release --locked
+          desktop-file-validate scripts/linux/pixclip.desktop
+          mkdir -p dist
+          cargo deb --no-build --output "dist/PixClip-$VERSION-linux-x64.deb"
+          cargo generate-rpm --auto-req builtin -o "dist/PixClip-$VERSION-linux-x64.rpm"
+      - name: Inspect packages and smoke test installed DEB
+        env:
+          PIXCLIP_STATE_DIR: ${{ runner.temp }}/pixclip-release-state
+        run: |
+          dpkg-deb --info "dist/PixClip-$VERSION-linux-x64.deb"
+          dpkg-deb --contents "dist/PixClip-$VERSION-linux-x64.deb"
+          rpm -qpl "dist/PixClip-$VERSION-linux-x64.rpm"
+          rpm -qp --requires "dist/PixClip-$VERSION-linux-x64.rpm"
+          sudo apt-get install -y --no-install-recommends "./dist/PixClip-$VERSION-linux-x64.deb"
+          pixclip --compatibility-test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: |
+            dist/*.deb
+            dist/*.rpm
+          if-no-files-found: error
+
+  arch:
+    needs: version
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Install Arch build dependencies
+        run: |
+          pacman -Syu --noconfirm --needed git rust pkgconf alsa-lib ffmpeg gtk3 \
+            libx11 libxcursor libxi libxrandr libxkbcommon libglvnd openssl wayland yt-dlp streamlink
+      - uses: actions/checkout@v4
+      - name: Build and inspect native Arch package
+        run: |
+          build_dir=$(mktemp -d)
+          git archive --format=tar --prefix=pixclip/ HEAD | gzip > "$build_dir/pixclip-source.tar.gz"
+          cp scripts/linux/arch/PKGBUILD "$build_dir/PKGBUILD"
+          sed -i "s/^pkgver=.*/pkgver=$VERSION/" "$build_dir/PKGBUILD"
+          useradd --create-home builder
+          chown -R builder:builder "$build_dir"
+          runuser -u builder -- bash -e -c '
+            cd "$1"
+            makepkg --geninteg >> PKGBUILD
+            makepkg --cleanbuild --noconfirm
+          ' bash "$build_dir"
+          mkdir -p dist
+          install -m644 "$build_dir"/pixclip-*.pkg.tar.zst "dist/PixClip-$VERSION-linux-x64.pkg.tar.zst"
+          pacman -Qip "dist/PixClip-$VERSION-linux-x64.pkg.tar.zst"
+          pacman -U --noconfirm "dist/PixClip-$VERSION-linux-x64.pkg.tar.zst"
+          runuser -u builder -- pixclip --help
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-arch
+          path: dist/*.pkg.tar.zst
+          if-no-files-found: error
+
+  flatpak:
+    needs: version
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-49
+      options: --privileged
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Export tagged source and vendor locked Rust dependencies
+        run: |
+          mkdir -p .cache/flatpak-source/.cargo dist
+          git archive HEAD | tar -x -C .cache/flatpak-source
+          cd .cache/flatpak-source
+          cargo vendor --locked --versioned-dirs vendor > .cargo/config.toml
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: scripts/linux/flatpak/io.github.PeakNAtanon.PixClip.yml
+          bundle: PixClip-${{ needs.version.outputs.version }}-linux-x64.flatpak
+          branch: stable
+          upload-artifact: false
+      - name: Install bundle and smoke test sandboxed media tools
+        run: |
+          flatpak install --user --noninteractive "PixClip-$VERSION-linux-x64.flatpak"
+          flatpak run io.github.PeakNAtanon.PixClip --help
+          flatpak run --command=ffmpeg io.github.PeakNAtanon.PixClip -version
+          flatpak run --command=ffprobe io.github.PeakNAtanon.PixClip -version
+          flatpak run --command=ffmpeg io.github.PeakNAtanon.PixClip \
+            -v error -f lavfi -i testsrc=size=160x90:rate=10 -t 1 -c:v libx264 -pix_fmt yuv420p -f null -
+          flatpak run --command=ffmpeg io.github.PeakNAtanon.PixClip \
+            -v error -f lavfi -i anullsrc -t 1 -c:a libmp3lame -f null -
+          flatpak run --command=yt-dlp io.github.PeakNAtanon.PixClip --version
+          flatpak run --command=streamlink io.github.PeakNAtanon.PixClip --version
+          install -m644 "PixClip-$VERSION-linux-x64.flatpak" dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-flatpak
+          path: dist/*.flatpak
+          if-no-files-found: error
+
+  macos:
+    needs: version
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      MACOSX_DEPLOYMENT_TARGET: '11.0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - name: Install macOS packaging tools
+        run: |
+          cargo install cargo-bundle --version 0.12.0 --locked
+          brew install create-dmg
+      - name: Build Universal Binary and app bundle
+        run: |
+          cargo build --release --locked --target aarch64-apple-darwin
+          cargo build --release --locked --target x86_64-apple-darwin
+          mkdir -p target/universal/release
+          lipo -create \
+            target/aarch64-apple-darwin/release/pixclip \
+            target/x86_64-apple-darwin/release/pixclip \
+            -output target/universal/release/pixclip
+          cargo bundle --release --format osx --target aarch64-apple-darwin \
+            --binary-path target/universal/release/pixclip
+      - name: Verify app and create DMG
+        env:
+          PIXCLIP_STATE_DIR: ${{ runner.temp }}/pixclip-release-state
+        run: |
+          app=target/aarch64-apple-darwin/release/bundle/osx/PixClip.app
+          binary="$app/Contents/MacOS/pixclip"
+          lipo -verify_arch arm64 x86_64 "$binary"
+          # A universal app must not depend on an architecture-specific Homebrew dylib.
+          if otool -L "$binary" | grep -E '/opt/homebrew/|/usr/local/'; then
+            echo 'Unexpected non-system dynamic library in app bundle' >&2
+            exit 1
+          fi
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          "$binary" --help
+          mkdir -p dist "$RUNNER_TEMP/pixclip-dmg"
+          ditto "$app" "$RUNNER_TEMP/pixclip-dmg/PixClip.app"
+          create-dmg --volname PixClip --skip-jenkins --app-drop-link 450 180 \
+            "dist/PixClip-$VERSION-macos-universal.dmg" "$RUNNER_TEMP/pixclip-dmg"
+          hdiutil verify "dist/PixClip-$VERSION-macos-universal.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  publish:
+    needs: [version, windows, linux, arch, flatpak, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Verify all packages and generate checksums
+        run: |
+          for package in \
+            "dist/PixClip-$VERSION-windows-x64.msi" \
+            "dist/PixClip-$VERSION-linux-x64.deb" \
+            "dist/PixClip-$VERSION-linux-x64.rpm" \
+            "dist/PixClip-$VERSION-linux-x64.pkg.tar.zst" \
+            "dist/PixClip-$VERSION-linux-x64.flatpak" \
+            "dist/PixClip-$VERSION-macos-universal.dmg"; do
+            test -s "$package"
+          done
+          (cd dist && sha256sum ./*.msi ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.flatpak ./*.dmg > "PixClip-$VERSION-SHA256SUMS.txt")
+      - name: Upload packages to GitHub Release
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft \
+              --title "PixClip $RELEASE_TAG" --generate-notes
+          fi
+          gh release upload "$RELEASE_TAG" dist/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false

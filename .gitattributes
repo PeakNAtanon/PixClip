@@ -11,3 +11,6 @@
 *.ttf binary
 *.aseprite binary
 *.wxs text eol=lf
+PKGBUILD text eol=lf
+/scripts/linux/flatpak/pixclip text eol=lf
+/scripts/linux/flatpak/streamlink text eol=lf

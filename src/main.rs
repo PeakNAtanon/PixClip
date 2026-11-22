@@ -10,6 +10,7 @@ mod model;
 mod process;
 mod spotify;
 mod tools;
+mod updater;
 
 use anyhow::{Context as _, Result, bail, ensure};
 use model::{Job, Settings, State};
@@ -124,7 +125,7 @@ fn run(mut arguments: Vec<String>) -> Result<()> {
             kind: "tools".into(),
             mode: mode.into(),
             url: mode.into(),
-            folder: model::root(),
+            folder: tools::directory(),
             ..Job::default()
         });
     }
@@ -689,7 +690,7 @@ fn menu(cookies: Option<PathBuf>) -> Result<()> {
                         kind: "tools".into(),
                         mode: label.into(),
                         url: label.into(),
-                        folder: model::root(),
+                        folder: tools::directory(),
                         ..Job::default()
                     })
                 }

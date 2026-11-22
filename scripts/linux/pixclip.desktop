@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PixClip
+Comment=Download, record, convert, cut and join media
+Exec=pixclip --gui
+Icon=pixclip
+Terminal=false
+Categories=AudioVideo;Video;

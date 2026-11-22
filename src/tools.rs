@@ -14,6 +14,14 @@ use std::{
 
 pub const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
 
+pub fn directory() -> PathBuf {
+    if cfg!(windows) {
+        model::root().join("tools")
+    } else {
+        model::state_dir().join("tools")
+    }
+}
+
 pub fn find(name: &str) -> Option<PathBuf> {
     let names = if cfg!(windows) {
         vec![format!("{name}.exe"), name.into()]
@@ -21,7 +29,9 @@ pub fn find(name: &str) -> Option<PathBuf> {
         vec![name.into()]
     };
     let root = model::root();
+    let managed = directory();
     let mut directories = vec![
+        managed.clone(),
         root.join("tools"),
         root.join("tools/streamlink/bin"),
         root.clone(),
@@ -41,9 +51,22 @@ pub fn find(name: &str) -> Option<PathBuf> {
             versions.sort_by(|a, b| b.cmp(a));
             directories.splice(2..2, versions.into_iter().map(|p| p.join("bin")));
         }
-        if cfg!(target_os = "linux") && root.join("tools/streamlink.AppImage").is_file() {
-            return Some(root.join("tools/streamlink.AppImage"));
+        if cfg!(target_os = "linux") {
+            for path in [
+                managed.join("streamlink.AppImage"),
+                root.join("tools/streamlink.AppImage"),
+            ] {
+                if path.is_file() {
+                    return Some(path);
+                }
+            }
         }
+    }
+    if cfg!(target_os = "macos") {
+        directories.extend([
+            PathBuf::from("/opt/homebrew/bin"),
+            PathBuf::from("/usr/local/bin"),
+        ]);
     }
     if let Some(path) = env::var_os("PATH") {
         directories.extend(env::split_paths(&path));
@@ -174,7 +197,7 @@ fn extract_tool(bytes: &[u8], filename: &str, target: &Path) -> Result<()> {
 }
 
 pub fn install(ctx: &Context, source_check: bool) -> Result<()> {
-    let folder = model::root().join("tools");
+    let folder = directory();
     let asset = if cfg!(windows) {
         "yt-dlp.exe"
     } else if cfg!(target_os = "macos") {
@@ -347,7 +370,7 @@ fn install_streamlink(ctx: &Context) -> Result<()> {
     let (url, digest) = streamlink_asset(ctx)?;
     let bytes = download(&url, ctx)?;
     checked_bytes(&bytes, &digest)?;
-    let folder = model::root().join("tools");
+    let folder = directory();
     if cfg!(windows) {
         let versions = folder.join("streamlink");
         fs::create_dir_all(&versions)?;
@@ -485,6 +508,15 @@ pub fn kick_playback(video_id: &str, ctx: &Context) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn installed_tools_use_the_platform_storage_directory() {
+        let base = if cfg!(windows) {
+            model::root()
+        } else {
+            model::state_dir()
+        };
+        assert_eq!(directory(), base.join("tools"));
+    }
     #[test]
     fn portable_archive_accepts_the_official_wrapper_folder_and_rejects_traversal() {
         use std::{

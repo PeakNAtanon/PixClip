@@ -2,6 +2,7 @@ mod clip;
 mod playback;
 mod playlist_review;
 mod spotify_review;
+mod update;
 
 use crate::{
     jobs::Engine,
@@ -45,6 +46,7 @@ enum UiEvent {
 }
 
 pub struct App {
+    updater: update::Updater,
     engine: Engine,
     settings: Settings,
     url: String,
@@ -135,6 +137,7 @@ pub fn run() -> Result<()> {
 impl App {
     fn new(ctx: &egui::Context, mut engine: Engine, settings: Settings) -> Self {
         theme(ctx);
+        let updater = update::Updater::new(ctx);
         for (name, png) in [
             (
                 BUTTON_ICON_ATLAS,
@@ -207,6 +210,7 @@ impl App {
         }
         .unwrap_or_default();
         Self {
+            updater,
             engine,
             settings,
             url: clipboard.trim().into(),
@@ -464,7 +468,7 @@ impl App {
             kind: "tools".into(),
             mode: mode.into(),
             url: mode.into(),
-            folder: model::root(),
+            folder: tools::directory(),
             reserve_gb: self.reserve,
             ..Job::default()
         };
@@ -1999,6 +2003,7 @@ impl App {
                     .auto_shrink([false, false])
                     .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
                     .show(ui, |ui| {
+                        self.updater.help_button(ui, self.thai);
                         for (index, section) in
                             data["sections"].as_array().unwrap().iter().enumerate()
                         {
@@ -2368,6 +2373,19 @@ impl eframe::App for App {
             }
         }
         self.tick_clip(ctx);
+        if !self.closing && self.updater.show(ctx, self.engine.pending(), self.thai) {
+            self.save_settings();
+            self.engine.save();
+            match self.updater.install() {
+                Ok(()) => {
+                    self.closing = true;
+                    self.engine.begin_close();
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    return;
+                }
+                Err(error) => self.updater.install_failed(error),
+            }
+        }
         if self.space_checked.elapsed() > Duration::from_secs(5) {
             self.free_space = fs2::available_space(&self.settings.output_directory).ok();
             self.space_checked = Instant::now();
