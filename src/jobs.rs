@@ -489,7 +489,7 @@ mod tests {
         engine.cancel(&id);
         assert_eq!(engine.job(&id).unwrap().state, State::Cancelled);
         let retry = engine.retry(&id, false).unwrap();
-        assert_ne!(folder, engine.job(&retry).unwrap().directory());
+        assert_eq!(folder, engine.job(&retry).unwrap().directory());
         engine.delete(&id).unwrap();
         assert!(folder.join("kept.ts").is_file());
         assert!(Engine::new(dir.path()).is_err());

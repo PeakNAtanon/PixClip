@@ -457,15 +457,6 @@ pub fn organized_folder(job: &Job) -> Result<PathBuf> {
         .then_some(name)
     })
     .unwrap_or(host);
-    let first = url
-        .path_segments()
-        .and_then(|mut p| p.find(|s| !s.is_empty()))
-        .unwrap_or_default();
-    let channel = match platform {
-        "YouTube" | "TikTok" => first.strip_prefix('@'),
-        "Twitch" | "Kick" if !matches!(first, "video" | "videos") => Some(first),
-        _ => None,
-    };
     let category = if crate::media::live(&job.mode) {
         "Live"
     } else if job.mode.starts_with("Playlist") {
@@ -481,16 +472,11 @@ pub fn organized_folder(job: &Job) -> Result<PathBuf> {
         .timestamp_opt(job.created as i64, 0)
         .single()
         .context("Invalid creation date")?;
-    let mut name = time.format("%Y-%m-%d %H-%M-%S").to_string();
-    if let Some(channel) = channel.filter(|s| !s.is_empty() && !s.contains('%')) {
-        name.push_str(&format!(" - {}", safe_component(channel)));
-    }
-    let id: String = job.id.chars().take(8).collect();
     Ok(job
         .folder
         .join(category)
         .join(safe_component(platform))
-        .join(format!("{name} [{id}]")))
+        .join(time.format("%Y-%m-%d").to_string()))
 }
 
 pub fn parse_time(text: &str) -> Result<f64> {
@@ -603,14 +589,13 @@ mod tests {
     fn downloads_group_by_media_type_and_website() {
         use crate::media::{MODES, STREAMLINK, TS};
 
-        for (mode, quality, url, category, platform, channel) in [
+        for (mode, quality, url, category, platform) in [
             (
                 TS,
                 QUALITIES[0],
                 "https://youtu.be/clip",
                 "Videos",
                 "YouTube",
-                "",
             ),
             (
                 MODES[0],
@@ -618,7 +603,6 @@ mod tests {
                 "https://m.youtube.com/watch?v=clip",
                 "Audio",
                 "YouTube",
-                "",
             ),
             (
                 MODES[6],
@@ -626,7 +610,6 @@ mod tests {
                 "https://www.youtube.com/playlist?list=music",
                 "Playlists",
                 "YouTube",
-                "",
             ),
             (
                 STREAMLINK,
@@ -634,7 +617,6 @@ mod tests {
                 "https://kick.com/channel/live",
                 "Live",
                 "Kick",
-                " - channel",
             ),
             (
                 MODES[0],
@@ -642,7 +624,6 @@ mod tests {
                 "https://con.example/file",
                 "Videos",
                 "con_.example",
-                "",
             ),
         ] {
             let job = Job {
@@ -657,11 +638,26 @@ mod tests {
                 .timestamp_opt(0, 0)
                 .single()
                 .unwrap()
-                .format("%Y-%m-%d %H-%M-%S");
-            let name = format!("{local_time}{channel} [{}]", &job.id[..8]);
+                .format("%Y-%m-%d")
+                .to_string();
             assert_eq!(
                 organized_folder(&job).unwrap(),
-                Path::new("output").join(category).join(platform).join(name),
+                Path::new("output")
+                    .join(category)
+                    .join(platform)
+                    .join(local_time),
+            );
+            let mut later = job.clone();
+            later.id = "another-job".into();
+            later.created += 1.0;
+            assert_eq!(
+                organized_folder(&job).unwrap(),
+                organized_folder(&later).unwrap()
+            );
+            later.created += 86400.0;
+            assert_ne!(
+                organized_folder(&job).unwrap(),
+                organized_folder(&later).unwrap()
             );
         }
     }
