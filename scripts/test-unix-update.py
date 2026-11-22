@@ -39,6 +39,15 @@ def fake(name, args):
         return subprocess.run([SHELL, "-c", 'exec "$@"', "sh", *args]).returncode
     elif name in ("apt-get", "pacman", "dnf"):
         return int(os.environ.get("TEST_FAIL_INSTALL", "0"))
+    elif name == "flatpak":
+        assert os.environ["WAYLAND_DISPLAY"] == "wayland-0"
+        assert os.environ.get("LD_PRELOAD") != "not-allowed"
+        if args[0] == "info":
+            print("/deployment/" + args[1][2:])
+        elif args[0] == "install":
+            return int(os.environ["TEST_FAIL_INSTALL"])
+    elif name == "systemctl":
+        print("WAYLAND_DISPLAY=wayland-0\nLD_PRELOAD=not-allowed")
     elif name == "hdiutil" and args[0] == "attach":
         app = native(args[args.index("-mountpoint") + 1]) / "PixClip.app/Contents"
         (app / "MacOS").mkdir(parents=True)
@@ -74,6 +83,67 @@ def fake(name, args):
         assert args[0] == "-"
         return subprocess.run([SHELL, args[1], "--replace-app", args[2], args[3]]).returncode
     return 0
+
+
+def check_flatpak(base):
+    source = ROOT / "scripts/linux/flatpak/install-update.sh"
+    script = source.read_text(encoding="utf-8")
+    assert script.count("PATH=/usr/bin:/bin") == 1
+    subprocess.run([SHELL, "-n", shell_path(source)], check=True)
+    cases = [
+        ("user", "success"), ("system", "success"), ("user", "failed"),
+        ("user", "tampered"), ("user", "cancelled"), ("other", "wrong-scope"),
+    ]
+    for scope, mode in cases:
+        folder = base / f"flatpak {scope} {mode}"
+        folder.mkdir()
+        trace = folder / "trace.txt"
+        env = dict(os.environ, TEST_TRACE=str(trace), TEST_FAIL_INSTALL=str(int(mode == "failed")))
+        for name in ("flatpak", "sha256sum", "id", "systemctl"):
+            wrapper = folder / name
+            wrapper.write_text("#!/bin/sh\nexec " + shlex.quote(str(Path(sys.executable))) + " " +
+                               shlex.quote(str(Path(__file__).resolve())) + " --fake " + name + ' "$@"\n', encoding="utf-8", newline="\n")
+            wrapper.chmod(0o755)
+        helper = folder / "helper.sh"
+        helper.write_text(script.replace("PATH=/usr/bin:/bin", "PATH=" + shlex.quote(shell_path(folder)) + ":/usr/bin:/bin"), encoding="utf-8", newline="\n")
+        package = folder / "verified bundle.flatpak"
+        package.write_bytes(b"verified bundle fixture")
+        digest = hashlib.sha256(package.read_bytes()).hexdigest() if mode != "tampered" else "0" * 64
+        log = folder / "install.log"
+        command = [SHELL, shell_path(helper), shell_path(package), digest,
+                   f"/deployment/{scope}/files", shell_path(log)]
+        with subprocess.Popen(command, env=env, stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE) as child:
+            ready = child.stdout.readline().strip()
+            assert (ready == b"ready") == (mode != "wrong-scope")
+            if ready:
+                child.stdin.write(b"cancel\n" if mode == "cancelled" else b"install\n")
+                child.stdin.flush()
+                if mode == "success":
+                    try:
+                        child.wait(timeout=0.2)
+                    except subprocess.TimeoutExpired:
+                        pass
+                    else:
+                        raise AssertionError("The updater did not wait for PixClip to exit")
+                    assert '"install"' not in trace.read_text(encoding="utf-8")
+            _, stderr = child.communicate(timeout=15)
+            assert (child.returncode == 0) == (mode == "success"), stderr
+        for _ in range(40):
+            calls = [json.loads(line) for line in trace.read_text(encoding="utf-8").splitlines()]
+            if mode in ("cancelled", "wrong-scope") or any(call[:2] == ["flatpak", "run"] for call in calls):
+                break
+            time.sleep(0.05)
+        installs = [call for call in calls if call[:2] == ["flatpak", "install"]]
+        restarts = [call for call in calls if call[:2] == ["flatpak", "run"]]
+        assert len(installs) == int(mode in ("success", "failed")), calls
+        assert len(restarts) == int(mode not in ("cancelled", "wrong-scope")), calls
+        if installs:
+            assert installs[0][2:7] == [f"--{scope}", "--bundle", "--or-update", "--noninteractive", "--assumeyes"]
+        if restarts:
+            assert restarts[0][2:] == [f"--{scope}", "app/io.github.PeakNAtanon.PixClip/x86_64/stable"]
+        assert Path(str(log) + ".failed").exists() == (mode in ("tampered", "failed"))
+        print(f"Flatpak updater: {scope}/{mode} passed (host commands mocked)", flush=True)
 
 
 def main():
@@ -157,6 +227,7 @@ def main():
                 if mode == "tampered":
                     assert "pkexec" not in contents, "Never request installation for a modified package"
             print(f"Unix updater: {kind}/{mode} passed (OS commands mocked)", flush=True)
+        check_flatpak(base)
         if sys.platform == "darwin":
             script = original.split("<<'APPLESCRIPT'\n", 1)[1].split("\nAPPLESCRIPT", 1)[0]
             source = base / "authorize.applescript"
@@ -167,5 +238,6 @@ def main():
 
 if __name__ == "__main__":
     if len(sys.argv) >= 3 and sys.argv[1] == "--fake":
+        sys.stdout.reconfigure(newline="\n")
         raise SystemExit(fake(sys.argv[2], sys.argv[3:]))
     main()

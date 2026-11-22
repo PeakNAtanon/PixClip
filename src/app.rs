@@ -2377,13 +2377,12 @@ impl eframe::App for App {
             self.save_settings();
             self.engine.save();
             match self.updater.install() {
-                Ok(true) => {
+                Ok(()) => {
                     self.closing = true;
                     self.engine.begin_close();
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     return;
                 }
-                Ok(false) => {}
                 Err(error) => self.updater.install_failed(error),
             }
         }

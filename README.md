@@ -125,12 +125,14 @@ attempt to reopen the previous app and show the error on its next launch.
 | Fedora/openSUSE x64 | Install the RPM with dnf or zypper; PolicyKit requests permission. |
 | Arch x64 | Install the package with pacman; PolicyKit requests permission. |
 | macOS Apple Silicon/Intel | Mount the Universal DMG, verify the app signature and identity, replace the app and reopen it. macOS requests administrator permission when needed. |
-| Flatpak x64 | Download and verify the bundle, then open the system installer for confirmation. Reopen PixClip after installation. |
+| Flatpak x64 | Install the verified bundle in the original per-user or default system installation and reopen PixClip. A system installation may request authorization. |
 
 macOS stages the new app before moving the previous bundle and restores the
 previous bundle if the replacement fails. Native Linux portable builds migrate
 to the system package; a standalone macOS binary migrates to `~/Applications`.
-Flatpak uses the file-opening portal and does not request host-command access.
+The Flatpak build requests `org.freedesktop.Flatpak` session bus access so it can
+start the host installer after the app exits. This permission lets the app run
+commands outside its sandbox. Custom Flatpak installations can update manually.
 Existing versions without this feature need one manual upgrade to a build
 containing it. No automatic update is offered when a matching package is absent.
 

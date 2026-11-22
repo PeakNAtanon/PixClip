@@ -26,9 +26,6 @@ pub enum Installer {
 }
 
 impl Installer {
-    pub fn restarts_automatically(self) -> bool {
-        self != Self::Flatpak
-    }
     fn suffix(self) -> &'static str {
         match self {
             Self::Msi => "windows-x64.msi",
@@ -296,7 +293,7 @@ pub fn install(package: &Package, path: &Path) -> Result<()> {
             "This package is not a Unix installer"
         );
         if package.installer == Installer::Flatpak {
-            return crate::process::open(path);
+            return install_flatpak(package, path);
         }
         let original = std::env::current_exe()?;
         let destination = if package.installer == Installer::Dmg {
@@ -341,6 +338,77 @@ pub fn install(package: &Package, path: &Path) -> Result<()> {
     }
 }
 
+#[cfg(unix)]
+fn install_flatpak(package: &Package, path: &Path) -> Result<()> {
+    use std::{
+        io::{BufRead, BufReader},
+        process::{ChildStdin, Stdio},
+        sync::{OnceLock, mpsc},
+        thread,
+    };
+    static UPDATE_LIFETIME: OnceLock<ChildStdin> = OnceLock::new();
+    ensure!(
+        UPDATE_LIFETIME.get().is_none(),
+        "Flatpak update already started"
+    );
+
+    let metadata = fs::read_to_string("/.flatpak-info")
+        .context("Could not read the Flatpak installation metadata")?;
+    let app_path = metadata
+        .lines()
+        .find_map(|line| line.strip_prefix("app-path="))
+        .filter(|value| Path::new(value).is_absolute())
+        .context("Missing Flatpak installation path")?;
+    let log = path
+        .parent()
+        .context("Missing update directory")?
+        .join("install-update.log");
+    // The host updater gets the bundled script and separate arguments, without inheriting sandbox environment overrides.
+    let mut child = crate::process::command("/usr/bin/flatpak-spawn")
+        .args([
+            "--host",
+            "--clear-env",
+            "--directory=/",
+            "/bin/sh",
+            "-c",
+            include_str!("../scripts/linux/flatpak/install-update.sh"),
+            "pixclip-update",
+        ])
+        .arg(path)
+        .arg(&package.hash)
+        .arg(app_path)
+        .arg(log)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .context("Could not start the Flatpak host updater")?;
+    let mut approval = child.stdin.take().context("Missing Flatpak update input")?;
+    let output = child
+        .stdout
+        .take()
+        .context("Missing Flatpak update output")?;
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        let mut line = String::new();
+        let result = BufReader::new(output).read_line(&mut line);
+        let _ = sender.send(result.is_ok() && line.trim_end() == "ready");
+        let _ = child.wait();
+    });
+    ensure!(
+        receiver.recv_timeout(Duration::from_secs(5)) == Ok(true),
+        "Flatpak host updater could not access this installation. If host access is disabled or the app uses a custom installation, update from Releases"
+    );
+    approval
+        .write_all(b"install\n")
+        .context("Flatpak updater closed before installation could start")?;
+    // The host starts installing after this pipe closes as PixClip exits.
+    UPDATE_LIFETIME
+        .set(approval)
+        .map_err(|_| anyhow::anyhow!("Flatpak update already started"))?;
+    Ok(())
+}
+
 pub fn take_install_error() -> Option<String> {
     let path = model::state_dir().join("updates/install-update.log.failed");
     let bytes = fs::read(&path).ok()?;
@@ -375,7 +443,6 @@ mod tests {
                 .unwrap();
             assert_eq!(result.installer, kind);
             assert!(result.name.ends_with(kind.suffix()));
-            assert_eq!(kind.restarts_automatically(), kind != Installer::Flatpak);
         }
     }
     #[test]

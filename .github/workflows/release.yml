@@ -184,6 +184,8 @@ jobs:
         run: |
           flatpak install --user --noninteractive "PixClip-$VERSION-linux-x64.flatpak"
           flatpak run io.github.PeakNAtanon.PixClip --help
+          dbus-run-session -- flatpak run --command=flatpak-spawn io.github.PeakNAtanon.PixClip \
+            --host --clear-env --directory=/ /usr/bin/flatpak --version
           flatpak run --command=ffmpeg io.github.PeakNAtanon.PixClip -version
           flatpak run --command=ffprobe io.github.PeakNAtanon.PixClip -version
           flatpak run --command=ffmpeg io.github.PeakNAtanon.PixClip \

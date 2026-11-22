@@ -8,6 +8,8 @@ command: pixclip
 rename-desktop-file: pixclip.desktop
 rename-icon: pixclip
 finish-args:
+  # Required to run the host Flatpak installer after the app exits.
+  - --talk-name=org.freedesktop.Flatpak
   - --share=network
   - --share=ipc
   - --socket=wayland

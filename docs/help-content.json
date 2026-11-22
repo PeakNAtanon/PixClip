@@ -53,7 +53,7 @@
       ],
       [
         "12  อัปเดต PixClip",
-        "แอปตรวจเวอร์ชันใหม่ตอนเปิดและทุก 6 ชั่วโมง หรือกดตรวจอัปเดต PixClip ใน Help ปุ่มอัปเดตและเปิดใหม่จะดาวน์โหลดแพ็กเกจของ Windows, DEB/RPM/Arch หรือ macOS ตรวจ SHA-256 แล้วติดตั้งและเปิดใหม่ ระบบอาจขอรหัสผ่านหรือยืนยันสิทธิ์ ให้งานในคิวเสร็จก่อน ประวัติและการตั้งค่าจะยังอยู่ Flatpak ดาวน์โหลดในแอปและเปิดตัวติดตั้งระบบให้ยืนยัน จากนั้นเปิด PixClip ใหม่"
+        "แอปตรวจเวอร์ชันใหม่ตอนเปิดและทุก 6 ชั่วโมง หรือกดตรวจอัปเดต PixClip ใน Help ปุ่มอัปเดตและเปิดใหม่จะดาวน์โหลดแพ็กเกจของ Windows, DEB/RPM/Arch, Flatpak หรือ macOS ตรวจ SHA-256 แล้วติดตั้งและเปิดใหม่ ระบบอาจขอรหัสผ่านหรือยืนยันสิทธิ์ ให้งานในคิวเสร็จก่อน ประวัติและการตั้งค่าจะยังอยู่"
       ]
     ]
   },
@@ -111,7 +111,7 @@
       ],
       [
         "12  PixClip updates",
-        "PixClip checks at startup and every six hours. Use Check PixClip updates in Help to check manually. Update and restart downloads and verifies the Windows MSI, native Linux DEB/RPM/Arch package, or Universal macOS DMG, then installs it and reopens the app. Your system may request installation permission. Finish queued jobs first. History and settings are retained. Flatpak downloads in the app and opens the system installer for confirmation; reopen PixClip after installation."
+        "PixClip checks at startup and every six hours. Use Check PixClip updates in Help to check manually. Update and restart downloads and verifies the Windows MSI, Linux DEB/RPM/Arch/Flatpak package, or Universal macOS DMG, then installs it and reopens the app. Your system may request installation permission. Finish queued jobs first. History and settings are retained."
       ]
     ]
   }
