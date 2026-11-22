@@ -36,7 +36,12 @@ impl Updater {
             last_check: Instant::now(),
         };
         if !cfg!(any(test, feature = "screenshot")) {
-            state.check(ctx);
+            if let Some(error) = updater::take_install_error() {
+                state.message = error;
+                state.open = true;
+            } else {
+                state.check(ctx);
+            }
         }
         state
     }
@@ -154,12 +159,15 @@ impl Updater {
                         if self.downloading {
                             ui.add(egui::ProgressBar::new(self.progress).show_percentage());
                         } else if let Some(package) = release.package {
-                            ui.label(if thai { "ดาวน์โหลดและตรวจ SHA-256 ก่อนติดตั้ง ประวัติและการตั้งค่าจะยังอยู่" } else { "The download is verified before installation. History and settings are kept." });
-                            if ui.add_enabled(!jobs_pending && !self.checking, egui::Button::new(if thai { "อัปเดตและเปิดใหม่" } else { "Update and restart" })).clicked() {
+                            ui.label(if thai { "ดาวน์โหลดและตรวจ SHA-256 ก่อนติดตั้ง ประวัติและการตั้งค่าจะยังอยู่ ระบบอาจขอรหัสผ่านหรือยืนยันสิทธิ์ก่อนติดตั้ง" } else { "The download is verified before installation. History and settings are kept. Your system may ask for installation permission." });
+                            let label = if package.installer.restarts_automatically() {
+                                if thai { "อัปเดตและเปิดใหม่" } else { "Update and restart" }
+                            } else if thai { "ดาวน์โหลดและเปิดตัวติดตั้ง" } else { "Download and open installer" };
+                            if ui.add_enabled(!jobs_pending && !self.checking, egui::Button::new(label)).clicked() {
                                 if self.downloaded.is_some() { install = true; } else { self.download(ctx, package); }
                             }
                         } else {
-                            ui.label(if thai { "ระบบนี้อัปเดตผ่านแพ็กเกจของระบบ กรุณาเปิดหน้าดาวน์โหลด" } else { "Install this update with your platform package manager." });
+                            ui.label(if thai { "ยังไม่มีแพ็กเกจอัปเดตที่ตรงกับระบบนี้ กรุณาตรวจหน้า Releases" } else { "No matching update package is published for this system. Check Releases." });
                         }
                         if ui.button(if thai { "เปิดหน้า Releases" } else { "Open Releases" }).clicked()
                             && let Err(error) = process::open(Path::new(updater::RELEASE_PAGE)) {
@@ -173,18 +181,25 @@ impl Updater {
         install
     }
 
-    pub fn install(&mut self) -> Result<()> {
+    pub fn install(&mut self) -> Result<bool> {
         let package = self
             .release
             .as_ref()
             .and_then(|r| r.package.as_ref())
             .context("No compatible installer is available")?;
+        let restart = package.installer.restarts_automatically();
         updater::install(
             package,
             self.downloaded
                 .as_deref()
                 .context("Download the update first")?,
-        )
+        )?;
+        if !restart {
+            self.release = None;
+            self.message = "Flatpak installer opened. Confirm installation in your system, then reopen PixClip.".into();
+            self.open = true;
+        }
+        Ok(restart)
     }
 
     pub fn install_failed(&mut self, error: impl std::fmt::Display) {

@@ -60,6 +60,9 @@ jobs:
           gzip -dc ffprobe-darwin-x64.gz > ffprobe
           chmod +x ffmpeg ffprobe
           echo "$PWD" >> "$GITHUB_PATH"
+      - name: Test Unix app update helper with simulated installers
+        if: runner.os != 'Windows'
+        run: python3 scripts/test-unix-update.py
       - run: cargo fmt --check
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked

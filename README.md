@@ -112,17 +112,27 @@ PixClip 0.2.22 and later check GitHub Releases at startup and every six hours.
 Use **HELP → Check PixClip updates** to check manually. When a newer stable
 version is available, the app displays an update window.
 
-On Windows x64, **Update and restart** downloads the official MSI, verifies its
-size and GitHub SHA-256 digest, and waits for PixClip to exit before installing.
-The installer shows progress and reopens PixClip. Queued or running jobs must
-finish first; history, settings and downloaded media are kept. Portable users
-are migrated to a per-user MSI installation. Failed downloads keep the app open;
-installer failures show an error and attempt to reopen the previous app.
+**Update and restart** downloads the matching package, verifies its size and
+GitHub SHA-256 digest, and waits for PixClip to exit before installing.
+Queued or running jobs must finish first. History, settings and downloaded
+media are kept. Failed downloads keep the app open; installation failures
+attempt to reopen the previous app and show the error on its next launch.
 
-Linux and macOS show update notifications and a Releases link; install the
-appropriate package with the platform package manager. Automatic installation
-in this release is supported on Windows x64. Existing versions without this
-feature need one manual upgrade to a build containing it.
+| Installation | Update method |
+| --- | --- |
+| Windows x64 | MSI installation and automatic restart; portable users migrate to a per-user MSI install. |
+| Debian/Ubuntu x64 | Install the DEB with apt; PolicyKit (`pkexec`) requests permission. |
+| Fedora/openSUSE x64 | Install the RPM with dnf or zypper; PolicyKit requests permission. |
+| Arch x64 | Install the package with pacman; PolicyKit requests permission. |
+| macOS Apple Silicon/Intel | Mount the Universal DMG, verify the app signature and identity, replace the app and reopen it. macOS requests administrator permission when needed. |
+| Flatpak x64 | Download and verify the bundle, then open the system installer for confirmation. Reopen PixClip after installation. |
+
+macOS stages the new app before moving the previous bundle and restores the
+previous bundle if the replacement fails. Native Linux portable builds migrate
+to the system package; a standalone macOS binary migrates to `~/Applications`.
+Flatpak uses the file-opening portal and does not request host-command access.
+Existing versions without this feature need one manual upgrade to a build
+containing it. No automatic update is offered when a matching package is absent.
 
 ### Media tools
 

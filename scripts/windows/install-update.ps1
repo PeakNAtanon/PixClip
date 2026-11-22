@@ -17,6 +17,9 @@ try {
     $installed = (Get-ItemProperty -LiteralPath 'HKCU:\Software\PixClip\Installer' -Name InstallFolder -ErrorAction Stop).InstallFolder
     $relaunch = Join-Path $installed 'PixClip.exe'
 } catch {
+    if ($updatePlan -and $updatePlan.log) {
+        [IO.File]::WriteAllText(($updatePlan.log + '.failed'), $_.Exception.Message)
+    }
     $_ | Out-String | Add-Content -LiteralPath ($Plan + '.error.log')
     Add-Type -AssemblyName System.Windows.Forms
     [void][System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'PixClip update', 'OK', 'Error')
