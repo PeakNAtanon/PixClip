@@ -139,9 +139,11 @@ jobs:
             libx11 libxcursor libxi libxrandr libxkbcommon libglvnd openssl wayland yt-dlp streamlink
       - uses: actions/checkout@v4
       - name: Build and inspect native Arch package
+        shell: bash
         run: |
           build_dir=$(mktemp -d)
-          git archive --format=tar --prefix=pixclip/ HEAD | gzip > "$build_dir/pixclip-source.tar.gz"
+          git -c safe.directory="$GITHUB_WORKSPACE" archive --format=tar.gz --prefix=pixclip/ \
+            -o "$build_dir/pixclip-source.tar.gz" HEAD
           cp scripts/linux/arch/PKGBUILD "$build_dir/PKGBUILD"
           sed -i "s/^pkgver=.*/pkgver=$VERSION/" "$build_dir/PKGBUILD"
           useradd --create-home builder
@@ -174,9 +176,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Export tagged source and vendor locked Rust dependencies
+        shell: bash
         run: |
           mkdir -p .cache/flatpak-source/.cargo dist
-          git archive HEAD | tar -x -C .cache/flatpak-source
+          git -c safe.directory="$GITHUB_WORKSPACE" archive HEAD | tar -x -C .cache/flatpak-source
           cd .cache/flatpak-source
           cargo vendor --locked --versioned-dirs vendor > .cargo/config.toml
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
@@ -214,9 +217,14 @@ jobs:
       MACOSX_DEPLOYMENT_TARGET: '11.0'
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Set up Rust for Apple Silicon and Intel
+        run: |
+          rustup default stable
+          for attempt in 1 2 3; do
+            if rustup target add aarch64-apple-darwin x86_64-apple-darwin; then exit 0; fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            sleep 10
+          done
       - uses: Swatinem/rust-cache@v2
       - name: Test Unix app update helper with simulated installers
         run: python3 scripts/test-unix-update.py
