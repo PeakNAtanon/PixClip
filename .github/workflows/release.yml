@@ -39,6 +39,8 @@ jobs:
   windows:
     needs: version
     runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -65,11 +67,14 @@ jobs:
         run: |
           ./scripts/build.ps1
           ./scripts/build-msi.ps1
-          if (-not (Get-ChildItem dist/*.msi)) { throw 'MSI was not created' }
+          if (-not (Test-Path -LiteralPath "dist/PixClip-$env:VERSION-windows-x64.msi")) { throw 'MSI was not created' }
+          Copy-Item -LiteralPath PixClip.exe -Destination "dist/PixClip-$env:VERSION-windows-x64.exe"
       - uses: actions/upload-artifact@v4
         with:
           name: release-windows
-          path: dist/*.msi
+          path: |
+            dist/*.msi
+            dist/*.exe
           if-no-files-found: error
 
   linux:
@@ -276,6 +281,7 @@ jobs:
         run: |
           for package in \
             "dist/PixClip-$VERSION-windows-x64.msi" \
+            "dist/PixClip-$VERSION-windows-x64.exe" \
             "dist/PixClip-$VERSION-linux-x64.deb" \
             "dist/PixClip-$VERSION-linux-x64.rpm" \
             "dist/PixClip-$VERSION-linux-x64.pkg.tar.zst" \
@@ -283,7 +289,7 @@ jobs:
             "dist/PixClip-$VERSION-macos-universal.dmg"; do
             test -s "$package"
           done
-          (cd dist && sha256sum ./*.msi ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.flatpak ./*.dmg > "PixClip-$VERSION-SHA256SUMS.txt")
+          (cd dist && sha256sum ./*.msi ./*.exe ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.flatpak ./*.dmg > "PixClip-$VERSION-SHA256SUMS.txt")
       - name: Upload packages to GitHub Release
         run: |
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then

@@ -64,7 +64,7 @@ The tag must match the three-part version in `Cargo.toml`, such as `v0.2.22`
 for version `0.2.22`. Update `Cargo.toml` and `Cargo.lock` and commit the changes
 before creating the tag. This workflow does not create or push tags itself.
 
-- Windows: the existing build scripts and WiX 5.0.2 produce an x64 MSI.
+- Windows: the existing build scripts and WiX 5.0.2 produce an x64 MSI and a portable EXE.
 - Linux: [cargo-deb](https://github.com/kornelski/cargo-deb) and
   [cargo-generate-rpm](https://github.com/cat-in-136/cargo-generate-rpm)
   produce x64 DEB/RPM packages with a desktop launcher. FFmpeg and GTK are
@@ -80,7 +80,7 @@ before creating the tag. This workflow does not create or push tags itself.
   The app is signed ad hoc for executable integrity, without Developer ID
   signing or notarization. FFmpeg and Streamlink still require Homebrew.
 
-All five builds must succeed before the workflow publishes the six installers
+All five builds must succeed before the workflow publishes the seven program files
 and a SHA-256 checksum file to the tag's GitHub Release. A new release stays a
 draft until its uploads finish. The workflow uses the built-in `GITHUB_TOKEN`;
 only its publishing job has `contents: write` permission.
