@@ -1,6 +1,7 @@
 <p align="center"><img src="assets/pixclip-mascot-512.png" alt="PixClip pixel-art camera mascot" width="256"></p>
 <h1 align="center">PixClip</h1>
 <p align="center">Download / Record / Convert / Cut / Join</p>
+<p align="center"><a href="https://ko-fi.com/peaknatanon"><strong>Support PixClip on Ko-fi</strong></a></p>
 
 PixClip is a native Rust media toolkit for Windows, Linux, and macOS with a dark
 mint-and-amber theme and the original control layout.
@@ -18,6 +19,10 @@ Get the Windows, Linux and macOS builds from [GitHub Releases](https://github.co
 
 Run `./PixClip --cli` in a terminal on Linux or macOS. The Windows MSI installs in
 `%LOCALAPPDATA%\PixClipApp`, while queue history is stored in `%LOCALAPPDATA%\PixClip`.
+
+For sites that require sign-in, export a `cookies.txt` file in Netscape format
+and load it in PixClip with **Cookies → Choose**.
+[Get cookies.txt LOCALLY on the Chrome Web Store](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc).
 
 If you downloaded source code, build the application first:
 
@@ -150,7 +155,6 @@ See the [comparison and test report](docs/RUST-PARITY.md) for the original Pytho
 - Live recording with Streamlink or benchmarked CPU and hardware H.264 encoding.
 - One to five parallel downloads, pause, cancel, retry, history and job logs.
 - Scheduled Live recordings with a fixed end time and reconnect attempts.
-- Optional Netscape `cookies.txt` files for authenticated sources.
 - Convert multiple files at once, convert TS to MP4 or HEVC to H.264, compress MP4, or extract audio as MP3, M4A, FLAC or WAV.
 - Frame previews, fast and accurate cuts, and ordered joins.
 - For smaller video files, choose **CONVERT → Compress MP4**, select **Balanced**, **Smaller**, or **Smallest**, and optionally limit resolution to 1080p or 720p. PixClip saves a separate MP4. Results depend on the source.
@@ -267,7 +271,6 @@ GUI smoke builds can enable `--features screenshot` and set `PIXCLIP_SCREENSHOT_
 to a PNG filename. Always use an isolated `PIXCLIP_STATE_DIR` for UI tests.
 
 See [the Thai guide](docs/README-PixClip.md) and [contributor instructions](AGENTS.md).
-Support development on [Ko-fi](https://ko-fi.com/peaknatanon).
 
 ## License
 
