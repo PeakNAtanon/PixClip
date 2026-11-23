@@ -11,20 +11,58 @@ Streamlink and yt-dlp retain their own runtime and packaging requirements.
 
 ## Run
 
-Get the Windows, Linux and macOS builds from [GitHub Releases](https://github.com/PeakNAtanon/PixClip/releases/latest).
+Download the package for your system from [GitHub Releases](https://github.com/PeakNAtanon/PixClip/releases/latest), then follow the steps for [Windows](#windows-x64), [Linux](#linux-x64), or [macOS](#macos).
 
-- **Windows x64** — run the MSI for a per-user install with a Start menu shortcut, or download the portable EXE. Open PixClip and choose **Install tools** on first use.
-- **Linux x64** — install the `.deb`, `.rpm`, Arch package, or Flatpak bundle for your system and launch PixClip from your app menu. See [CLI on Linux](#cli) for terminal commands.
-- **macOS** — choose `arm64` for Apple Silicon or `x64` for Intel. Extract the archive, run `brew install ffmpeg streamlink`, and then run `./PixClip --install-tools` followed by `./PixClip`.
+### Windows x64
 
-The Windows MSI installs in `%LOCALAPPDATA%\PixClipApp`, while queue history is
-stored in `%LOCALAPPDATA%\PixClip`.
+- **Installer (`.msi`)** — open the file, follow the installer, and launch PixClip from the Start menu. The installer uses `%LOCALAPPDATA%\PixClipApp`.
+- **Portable (`.exe`)** — open the downloaded EXE directly.
+
+On first launch, choose **Install tools**. PixClip stores queue history in `%LOCALAPPDATA%\PixClip`.
+
+### Linux x64
+
+Open a terminal in the folder containing the downloaded package. Replace `X.Y.Z` with the version in the filename and use the command for your distribution.
+
+| Distribution | Install command |
+| --- | --- |
+| Debian / Ubuntu | `sudo apt install ./PixClip-X.Y.Z-linux-x64.deb` |
+| Fedora | `sudo dnf install ./PixClip-X.Y.Z-linux-x64.rpm` |
+| openSUSE | `sudo zypper install ./PixClip-X.Y.Z-linux-x64.rpm` |
+| Arch Linux | `sudo pacman -U ./PixClip-X.Y.Z-linux-x64.pkg.tar.zst` |
+
+The RPM requires `ffmpeg` from an enabled repository. On Fedora, RPM Fusion provides this package. [RPM Fusion multimedia setup](https://rpmfusion.org/Howto/Multimedia)
+
+Launch PixClip from the app menu. On DEB or RPM installations, select **Install tools** to set up yt-dlp and Streamlink. See [CLI on Linux](#cli) for terminal commands.
+
+#### Flatpak
+
+Set up Flatpak for your distribution if needed. [Flatpak setup guide](https://flatpak.org/setup/)
+
+```bash
+flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+flatpak install --user flathub org.gnome.Platform//49
+flatpak install --user ./PixClip-X.Y.Z-linux-x64.flatpak
+flatpak run io.github.PeakNAtanon.PixClip
+```
+
+### macOS
+
+1. Open `PixClip-X.Y.Z-macos-universal.dmg` and drag **PixClip.app** to **Applications**. The same DMG works on Intel and Apple Silicon.
+2. In Terminal, run `brew install ffmpeg streamlink` to install the media tools. [Homebrew setup](https://brew.sh/)
+3. Open PixClip from **Applications** and select **Install tools** to install yt-dlp.
+
+If macOS blocks the first launch because it cannot verify the developer, confirm you downloaded PixClip from GitHub Releases. After trying to open the app, go to **System Settings → Privacy & Security → Open Anyway**. [Apple's instructions](https://support.apple.com/en-us/102445)
+
+To open the terminal menu, run `/Applications/PixClip.app/Contents/MacOS/pixclip --cli`.
+
+### Browser cookies
 
 For sites that require sign-in, export a `cookies.txt` file in Netscape format
 and load it in PixClip with **Cookies → Choose**.
 [Get cookies.txt LOCALLY on the Chrome Web Store](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc).
 
-If you downloaded source code, build the application first:
+### Build from source
 
 ```powershell
 # Windows: Rust with its matching MSVC or MinGW build tools is required.
@@ -92,11 +130,7 @@ only its publishing job has `contents: write` permission.
 Linux packages are built on `ubuntu-latest` and require compatible system
 libraries; this does not guarantee support for older distributions.
 
-Install the Arch package with `sudo pacman -U PixClip-X.Y.Z-linux-x64.pkg.tar.zst`.
-For Flatpak, enable the Flathub remote to obtain its runtime, then run
-`flatpak install --user PixClip-X.Y.Z-linux-x64.flatpak` and
-`flatpak run io.github.PeakNAtanon.PixClip`. These files are published as GitHub
-release assets; the workflow does not submit packages to AUR or Flathub.
+The Arch package and Flatpak bundle are distributed through GitHub Releases.
 
 Linux users install FFmpeg/ffprobe with their package manager.
 The media-tool installer downloads standalone yt-dlp with checksum verification;

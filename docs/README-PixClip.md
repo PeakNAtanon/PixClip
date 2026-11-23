@@ -22,7 +22,15 @@
 
 ## ติดตั้งและ build
 
-บน Windows เปิดไฟล์ MSI แล้วเลือก **Install tools** ใน PixClip เมื่อใช้ครั้งแรก ตัวโปรแกรมติดตั้งใน `%LOCALAPPDATA%\PixClipApp` และเก็บประวัติไว้ใน `%LOCALAPPDATA%\PixClip`
+### ติดตั้งจาก GitHub Releases
+
+- **Windows x64** เปิด `.msi` แล้วทำตามตัวติดตั้ง หรือเปิด `.exe` แบบพกพาได้ทันที เมื่อเปิด PixClip ครั้งแรกให้กด **Install tools**
+- **Linux x64** ใช้ `.deb` สำหรับ Debian/Ubuntu, `.rpm` สำหรับ Fedora/openSUSE, `.pkg.tar.zst` สำหรับ Arch หรือ `.flatpak` ดูคำสั่งของแต่ละแพ็กเกจและวิธีเพิ่ม Flathub ใน [วิธีติดตั้งบน Linux](../README.md#linux-x64)
+- **macOS** เปิด Universal `.dmg` แล้วลาก **PixClip.app** ไปไว้ใน **Applications** ใช้ไฟล์เดียวกันทั้ง Intel และ Apple Silicon รัน `brew install ffmpeg streamlink` ใน Terminal แล้วเปิด PixClip และกด **Install tools** เพื่อติดตั้ง yt-dlp [Homebrew](https://brew.sh/)
+
+ถ้า macOS แจ้งว่าไม่สามารถยืนยันผู้พัฒนาได้ ให้ตรวจว่าไฟล์มาจาก GitHub Releases หลังลองเปิดแอป ให้ไปที่ **System Settings → Privacy & Security → Open Anyway** [คู่มือ Apple](https://support.apple.com/en-us/102445)
+
+### บิลด์จากซอร์ส
 
 สำหรับแพ็กเกจ ZIP ให้แตกไฟล์แล้วเปิด `Install-PixClip.bat`
 ตัวติดตั้งจะดาวน์โหลด yt-dlp และ FFmpeg ที่ตรวจ checksum แล้ว พร้อม Streamlink แบบ portable จากโครงการทางการและตรวจ SHA-256 โดยไม่ต้องมี winget หรือ Python ในเครื่อง
