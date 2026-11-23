@@ -14,11 +14,11 @@ Streamlink and yt-dlp retain their own runtime and packaging requirements.
 Get the Windows, Linux and macOS builds from [GitHub Releases](https://github.com/PeakNAtanon/PixClip/releases/latest).
 
 - **Windows x64** — run the MSI for a per-user install with a Start menu shortcut, or download the portable EXE. Open PixClip and choose **Install tools** on first use.
-- **Linux x64** — extract the archive, install FFmpeg with your distribution's package manager, and run `./PixClip --install-tools`, then `./PixClip`. Release archives are built on Ubuntu 24.04.
+- **Linux x64** — install the `.deb`, `.rpm`, Arch package, or Flatpak bundle for your system and launch PixClip from your app menu. See [CLI on Linux](#cli) for terminal commands.
 - **macOS** — choose `arm64` for Apple Silicon or `x64` for Intel. Extract the archive, run `brew install ffmpeg streamlink`, and then run `./PixClip --install-tools` followed by `./PixClip`.
 
-Run `./PixClip --cli` in a terminal on Linux or macOS. The Windows MSI installs in
-`%LOCALAPPDATA%\PixClipApp`, while queue history is stored in `%LOCALAPPDATA%\PixClip`.
+The Windows MSI installs in `%LOCALAPPDATA%\PixClipApp`, while queue history is
+stored in `%LOCALAPPDATA%\PixClip`.
 
 For sites that require sign-in, export a `cookies.txt` file in Netscape format
 and load it in PixClip with **Cookies → Choose**.
@@ -222,22 +222,35 @@ Videos/ or Live/ or Playlists/ or Audio/
 
 ## CLI
 
-```text
-PixClip.exe --cli
-PixClip.exe --compatibility-test
-PixClip.exe --install-tools
-PixClip.exe --update-ytdlp
-PixClip.exe --download-ts URL OUTPUT_DIR
-PixClip.exe --download-live-ts-auto URL OUTPUT_DIR
-PixClip.exe --download-live-ts-nvenc URL OUTPUT_DIR
-PixClip.exe --record-live-streamlink URL OUTPUT_DIR --cookies-file cookies.txt
-PixClip.exe --convert 0 INPUT.ts
-PixClip.exe --convert 4 INPUT.mp4 --compression smallest --max-resolution 720
-PixClip.exe --cut INPUT.mp4 OUTPUT.mp4 00:01:00 00:01:30 --accurate
-PixClip.exe --join OUTPUT.mp4 FIRST.mp4 SECOND.mp4
+On Linux, the DEB, RPM and Arch packages install the `pixclip` command.
+
+```bash
+pixclip --cli
+pixclip --help
+pixclip --compatibility-test
+pixclip --install-tools
+pixclip --update-ytdlp
+pixclip --download-ts "URL" "OUTPUT_DIR"
+pixclip --download-live-ts-auto "URL" "OUTPUT_DIR"
+pixclip --download-live-ts-nvenc "URL" "OUTPUT_DIR"
+pixclip --record-live-streamlink "URL" "OUTPUT_DIR" --cookies-file "cookies.txt"
+pixclip --convert 0 "INPUT.ts"
+pixclip --convert 4 "INPUT.mp4" --compression smallest --max-resolution 720
+pixclip --cut "INPUT.mp4" "OUTPUT.mp4" 00:01:00 00:01:30 --accurate
+pixclip --join "OUTPUT.mp4" "FIRST.mp4" "SECOND.mp4"
 ```
 
-On Linux replace `PixClip.exe` with `./PixClip`. Use `--help` for all commands.
+For Flatpak, run PixClip by its app ID. The bundle includes the media tools.
+
+```bash
+flatpak run io.github.PeakNAtanon.PixClip --cli
+flatpak run io.github.PeakNAtanon.PixClip --help
+```
+
+Use the same `flatpak run io.github.PeakNAtanon.PixClip` prefix for media
+commands. Use paths accessible from the sandbox, such as Downloads, Music or Videos.
+If you built from source, run `./PixClip --cli` from the repository root.
+
 Direct CLI jobs use a temporary queue, leave GUI history untouched, and refuse
 to overwrite outputs. **TUI** opens the terminal menu from the desktop app.
 The terminal menu includes the original choices 1–20 and adds 21–26 for time ranges, subtitles, playlist item numbers, compression, audio extraction, and cutting a clip. Direct CLI download folders

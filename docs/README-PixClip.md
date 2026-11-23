@@ -9,7 +9,10 @@
 
 - Windows: ดาวน์โหลด MSI สำหรับติดตั้งและสร้างทางลัดใน Start หรือใช้ EXE แบบพกพาจาก [GitHub Releases](https://github.com/PeakNAtanon/PixClip/releases/latest)
 - สร้าง shortcut: เปิด `scripts/windows/Create-PixClip-Shortcut.vbs`
-- Linux และ macOS เปิดด้วย `./PixClip` หรือใช้ `./PixClip --cli` ในเทอร์มินัล
+- Linux ที่ติดตั้งจาก DEB, RPM หรือ Arch เปิดเมนูในเทอร์มินัลด้วย `pixclip --cli`
+- Linux ที่ติดตั้งจาก Flatpak ใช้ `flatpak run io.github.PeakNAtanon.PixClip --cli`
+- macOS ที่ติดตั้งใน Applications ใช้ `/Applications/PixClip.app/Contents/MacOS/pixclip --cli`
+- ถ้า build จากซอร์สบน Linux หรือ macOS ให้ใช้ `./PixClip --cli` จากโฟลเดอร์โปรเจกต์
 - บิลด์จากซอร์สด้วย `scripts/build.ps1` บน Windows หรือ `bash scripts/build.sh` บน Linux และ macOS
 - โค้ด Rust อยู่ใน `src/`, รูปอยู่ใน `assets/`, คู่มืออยู่ใน `docs/`, สคริปต์อยู่ใน `scripts/`
 - เครื่องมือภายนอกอยู่ใน `tools/`; ไฟล์ ZIP อยู่ใน `dist/` และไม่เก็บใน Git
