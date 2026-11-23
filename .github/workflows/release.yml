@@ -154,7 +154,7 @@ jobs:
             makepkg --cleanbuild --noconfirm
           ' bash "$build_dir"
           mkdir -p dist
-          install -m644 "$build_dir"/pixclip-*.pkg.tar.zst "dist/PixClip-$VERSION-linux-x64.pkg.tar.zst"
+          install -m644 "$build_dir/pixclip-$VERSION-1-x86_64.pkg.tar.zst" "dist/PixClip-$VERSION-linux-x64.pkg.tar.zst"
           pacman -Qip "dist/PixClip-$VERSION-linux-x64.pkg.tar.zst"
           pacman -U --noconfirm "dist/PixClip-$VERSION-linux-x64.pkg.tar.zst"
           runuser -u builder -- pixclip --help
@@ -192,8 +192,6 @@ jobs:
         run: |
           flatpak install --user --noninteractive "PixClip-$VERSION-linux-x64.flatpak"
           flatpak run io.github.PeakNAtanon.PixClip --help
-          dbus-run-session -- flatpak run --command=flatpak-spawn io.github.PeakNAtanon.PixClip \
-            --host --clear-env --directory=/ /usr/bin/flatpak --version
           flatpak run --command=ffmpeg io.github.PeakNAtanon.PixClip -version
           flatpak run --command=ffprobe io.github.PeakNAtanon.PixClip -version
           flatpak run --command=ffmpeg io.github.PeakNAtanon.PixClip \
@@ -208,6 +206,27 @@ jobs:
           name: release-flatpak
           path: dist/*.flatpak
           if-no-files-found: error
+
+  flatpak-update:
+    needs: [version, flatpak]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-flatpak
+      - name: Check host command from the installed Flatpak
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak dbus-daemon
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.gnome.Platform//49
+          flatpak install --user --noninteractive "PixClip-$VERSION-linux-x64.flatpak"
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/flatpak-runtime"
+          install -dm700 "$XDG_RUNTIME_DIR"
+          dbus-run-session -- flatpak run --command=flatpak-spawn io.github.PeakNAtanon.PixClip \
+            --host --clear-env --directory=/ /usr/bin/flatpak --version
 
   macos:
     needs: version
@@ -249,7 +268,7 @@ jobs:
         run: |
           app=target/aarch64-apple-darwin/release/bundle/osx/PixClip.app
           binary="$app/Contents/MacOS/pixclip"
-          lipo -verify_arch arm64 x86_64 "$binary"
+          lipo "$binary" -verify_arch arm64 x86_64
           # A universal app must not depend on an architecture-specific Homebrew dylib.
           if otool -L "$binary" | grep -E '/opt/homebrew/|/usr/local/'; then
             echo 'Unexpected non-system dynamic library in app bundle' >&2
@@ -270,7 +289,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [version, windows, linux, arch, flatpak, macos]
+    needs: [version, windows, linux, arch, flatpak, flatpak-update, macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
